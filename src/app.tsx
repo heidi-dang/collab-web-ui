@@ -10,6 +10,9 @@ import { ConnectScreen } from "./components/shell/ConnectScreen";
 import { HeaderBar } from "./components/shell/HeaderBar";
 import { Toasts } from "./components/shell/Toasts";
 import { Transcript } from "./components/transcript/Transcript";
+import { CommandPalette, AIChatPanel, OffscreenCanvasBoard, FloatingToolbar, ToolType } from "./components/collaborative";
+import { useSessionManager } from "./hooks/useSessionManager";
+import { useCanvasSocket } from "./hooks/useCanvasSocket";
 import { GuestClient } from "./lib/client";
 import { useGuestSnapshot } from "./lib/use-guest";
 import type { ToolRenderHost } from "./tool-render";
@@ -42,6 +45,20 @@ export function App(): ReactNode {
 	const [client, setClient] = useState<GuestClient | null>(null);
 	const [connectError, setConnectError] = useState<string | null>(null);
 	const credsRef = useRef<Creds | null>(null);
+
+	const { activeHash, sessions, addSession } = useSessionManager();
+	const { isOnline, connectionError, emitStroke } = useCanvasSocket(activeHash);
+
+	// Auto-prompt/save session if a user lands on a raw hash URL not in local storage
+	useEffect(() => {
+		const hash = window.location.hash;
+		if (hash && hash.length > 3) {
+			const exists = sessions.some(s => s.hash === hash);
+			if (!exists) {
+				addSession('Shared Session', hash);
+			}
+		}
+	}, [activeHash, sessions, addSession]);
 
 	const connect = useCallback((link: string, name: string): void => {
 		let next: GuestClient;
@@ -112,20 +129,27 @@ export function App(): ReactNode {
 	if (!client) {
 		return <ConnectScreen defaultName={storedName()} error={connectError} onConnect={connect} />;
 	}
-	return <Session client={client} onLeave={leave} onRejoin={rejoin} />;
+	return <Session client={client} activeHash={activeHash} isOnline={isOnline} connectionError={connectionError} emitStroke={emitStroke} onLeave={leave} onRejoin={rejoin} />;
 }
 
 interface SessionProps {
 	client: GuestClient;
+	activeHash: string;
+	isOnline: boolean;
+	connectionError: string | null;
+	emitStroke: (stroke: any) => void;
 	onLeave(): void;
 	onRejoin(): void;
 }
 
-function Session({ client, onLeave, onRejoin }: SessionProps): ReactNode {
+function Session({ client, activeHash, isOnline, connectionError, emitStroke, onLeave, onRejoin }: SessionProps): ReactNode {
 	const snap = useGuestSnapshot(client);
 	const [railOpen, setRailOpen] = useState(false);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [analyticsOpen, setAnalyticsOpen] = useState(false);
+	const [aiChatOpen, setAiChatOpen] = useState(false);
+	const [activeTool, setActiveTool] = useState<ToolType>("select");
+	const [canvasOverlayActive, setCanvasOverlayActive] = useState(false);
 	const autoOpenedRef = useRef(false);
 
 	const subCount = useMemo(() => snap.agents.filter(a => a.kind === "sub").length, [snap.agents]);
@@ -175,7 +199,33 @@ function Session({ client, onLeave, onRejoin }: SessionProps): ReactNode {
 	const showBudgetBanner = budget.enabled && tokenPct >= 80;
 
 	return (
-		<div className="sh-app">
+		<div className="sh-app relative">
+			{/* Global Keyboard Command Palette */}
+			<CommandPalette
+				onToolChange={(tool) => {
+					setActiveTool(tool === 'draw' ? 'draw' : tool === 'select' ? 'select' : 'select');
+					setCanvasOverlayActive(true);
+				}}
+				onToggleAIChat={() => setAiChatOpen(prev => !prev)}
+			/>
+
+			{/* 3. Offscreen Canvas Board with key={activeHash} to destroy & re-instantiate worker on workspace switch */}
+			{canvasOverlayActive && activeHash && (
+				<div className="fixed inset-0 z-10 pointer-events-auto">
+					<OffscreenCanvasBoard
+						key={`canvas-${activeHash}`}
+						onStrokeComplete={emitStroke}
+					/>
+					<FloatingToolbar
+						activeTool={activeTool}
+						onToolChange={setActiveTool}
+						isOnline={isOnline}
+						connectedUsersCount={1}
+						connectionError={connectionError}
+					/>
+				</div>
+			)}
+
 			<HeaderBar
 				snapshot={snap}
 				subCount={subCount}
@@ -242,8 +292,10 @@ function Session({ client, onLeave, onRejoin }: SessionProps): ReactNode {
 				</>
 			)}
 			{analyticsOpen && <AnalyticsDrawer snapshot={snap} onClose={() => setAnalyticsOpen(false)} />}
+			<AIChatPanel endpoint="/api/chat" isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
 			<Banners phase={snap.phase} endedReason={snap.endedReason} onRejoin={onRejoin} onNewLink={onLeave} />
 			<Toasts notices={snap.notices} />
 		</div>
 	);
 }
+

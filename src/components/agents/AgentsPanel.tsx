@@ -4,8 +4,10 @@ import type {
 	SubagentLifecyclePayload,
 	SubagentProgressPayload,
 } from "@oh-my-pi/pi-wire";
+import { Check, Hash, Layers, Plus, Server, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useSessionManager } from "../../hooks/useSessionManager";
 import { fmtCost, fmtDuration, fmtTokens, relTime } from "../../lib/format";
 import "./agents.css";
 
@@ -87,6 +89,20 @@ export function AgentsPanel(props: {
 }): ReactNode {
 	const { agents, progress, lifecycle, selectedId, onSelect } = props;
 	const now = useNow(1000);
+	const { activeHash, sessions, switchSession, addSession, removeSession } = useSessionManager();
+
+	const [isAddOpen, setIsAddOpen] = useState(false);
+	const [newName, setNewName] = useState("");
+	const [newHash, setNewHash] = useState("");
+
+	const handleAddServer = (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!newName.trim()) return;
+		addSession(newName, newHash || undefined);
+		setNewName("");
+		setNewHash("");
+		setIsAddOpen(false);
+	};
 
 	const sorted = useMemo(() => {
 		const mains: AgentSnapshot[] = [];
@@ -103,29 +119,138 @@ export function AgentsPanel(props: {
 
 	return (
 		<div className="ag-panel">
-			{sorted.mains.map(agent => (
-				<AgentRow
-					key={agent.id}
-					agent={agent}
-					payload={progress.get(agent.id)}
-					lifecycle={lifecycle.get(agent.id)}
-					selected={selectedId === agent.id}
-					now={now}
-					onSelect={onSelect}
-				/>
-			))}
-			{sorted.subs.map(agent => (
-				<AgentRow
-					key={agent.id}
-					agent={agent}
-					payload={progress.get(agent.id)}
-					lifecycle={lifecycle.get(agent.id)}
-					selected={selectedId === agent.id}
-					now={now}
-					onSelect={onSelect}
-				/>
-			))}
-			{sorted.subs.length === 0 ? <div className="ag-empty">no subagents</div> : null}
+			{/* Workspaces & VPS Servers Section */}
+			<div className="ag-section">
+				<div className="ag-section-header">
+					<div className="ag-section-title">
+						<Server size={13} className="ag-section-icon" />
+						<span>Workspaces & Servers</span>
+					</div>
+					<button
+						type="button"
+						className="ag-add-btn"
+						onClick={() => setIsAddOpen((open) => !open)}
+						title="Add Workspace / VPS Server"
+					>
+						<Plus size={13} />
+						<span>Add Server</span>
+					</button>
+				</div>
+
+				{/* Add Server Expandable Form */}
+				{isAddOpen && (
+					<form className="ag-add-form" onSubmit={handleAddServer}>
+						<div className="ag-add-field">
+							<label className="ag-add-label">Server / Workspace Name</label>
+							<input
+								type="text"
+								required
+								placeholder="e.g. Production VPS"
+								value={newName}
+								onChange={(e) => setNewName(e.target.value)}
+								className="ag-add-input"
+							/>
+						</div>
+						<div className="ag-add-field">
+							<label className="ag-add-label">Custom Room Hash (Optional)</label>
+							<input
+								type="text"
+								placeholder="e.g. #vps-prod-1"
+								value={newHash}
+								onChange={(e) => setNewHash(e.target.value)}
+								className="ag-add-input"
+							/>
+						</div>
+						<div className="ag-add-actions">
+							<button
+								type="button"
+								className="ag-btn-secondary"
+								onClick={() => setIsAddOpen(false)}
+							>
+								Cancel
+							</button>
+							<button type="submit" className="ag-btn-primary">
+								<Check size={12} /> Save Server
+							</button>
+						</div>
+					</form>
+				)}
+
+				<div className="ag-workspace-list">
+					{sessions.map((session) => {
+						const isActive = session.hash === activeHash;
+						return (
+							<div
+								key={session.id}
+								className={`ag-ws-card ${isActive ? "ag-ws-card--active" : ""}`}
+								onClick={() => switchSession(session.hash)}
+							>
+								<div className="ag-ws-info">
+									<span className="ag-ws-name">
+										<Hash size={12} className={isActive ? "text-indigo" : "text-faint"} />
+										{session.name}
+									</span>
+									<span className="ag-ws-hash">{session.hash}</span>
+								</div>
+								{isActive ? (
+									<span className="ag-chip ag-chip--running">Connected</span>
+								) : (
+									sessions.length > 1 && (
+										<button
+											type="button"
+											className="ag-ws-delete"
+											onClick={(e) => {
+												e.stopPropagation();
+												removeSession(session.id);
+											}}
+											title="Remove Server"
+										>
+											<Trash2 size={12} />
+										</button>
+									)
+								)}
+							</div>
+						);
+					})}
+				</div>
+			</div>
+
+			<div className="ag-divider" />
+
+			{/* Agents Section */}
+			<div className="ag-section">
+				<div className="ag-section-header">
+					<div className="ag-section-title">
+						<Layers size={13} className="ag-section-icon" />
+						<span>Agents & Subagents</span>
+					</div>
+				</div>
+
+				{sorted.mains.map((agent) => (
+					<AgentRow
+						key={agent.id}
+						agent={agent}
+						payload={progress.get(agent.id)}
+						lifecycle={lifecycle.get(agent.id)}
+						selected={selectedId === agent.id}
+						now={now}
+						onSelect={onSelect}
+					/>
+				))}
+				{sorted.subs.map((agent) => (
+					<AgentRow
+						key={agent.id}
+						agent={agent}
+						payload={progress.get(agent.id)}
+						lifecycle={lifecycle.get(agent.id)}
+						selected={selectedId === agent.id}
+						now={now}
+						onSelect={onSelect}
+					/>
+				))}
+				{sorted.subs.length === 0 ? <div className="ag-empty">no subagents</div> : null}
+			</div>
 		</div>
 	);
 }
+
