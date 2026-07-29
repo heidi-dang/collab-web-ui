@@ -376,7 +376,7 @@ export function Transcript(props: TranscriptProps): ReactNode {
 					<div className="tr-shimmer">thinking…</div>
 				</Row>
 			)}
-			<div className="tr-floating-controls">
+			<div className="tr-floating-controls fixed bottom-[90px] left-1/2 -translate-x-1/2 z-50">
 				<button
 					type="button"
 					className={`tr-autoscroll-btn${autoScrollLocked ? " tr-autoscroll-locked" : " tr-autoscroll-unlocked"}`}
