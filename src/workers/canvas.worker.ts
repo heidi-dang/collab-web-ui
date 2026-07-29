@@ -10,6 +10,11 @@ const strokeHistory: Map<string, StrokeData> = new Map();
 self.onmessage = (e: MessageEvent<WorkerMessage>) => {
   const msg = e.data;
 
+  if (msg.type === 'PING') {
+    self.postMessage({ type: 'PONG' });
+    return;
+  }
+
   switch (msg.type) {
     case 'INIT': {
       canvas = msg.canvas;

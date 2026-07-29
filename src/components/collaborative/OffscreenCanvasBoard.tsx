@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { WorkerMessage, StrokeData, Point } from '../../types/canvas';
+import { useWorkerHeartbeat } from '../../hooks/useWorkerHeartbeat';
 
 interface OffscreenCanvasBoardProps {
   onStrokeComplete?: (stroke: StrokeData) => void;
@@ -15,9 +16,20 @@ export const OffscreenCanvasBoard: React.FC<OffscreenCanvasBoardProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const workerRef = useRef<Worker | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [deadlocked, setDeadlocked] = useState(false);
   
   const currentStrokeId = useRef<string | null>(null);
   const currentPoints = useRef<Point[]>([]);
+
+  const handleDeadlock = useCallback(() => {
+    setDeadlocked(true);
+  }, []);
+
+  useWorkerHeartbeat(workerRef.current, handleDeadlock);
+
+  if (deadlocked) {
+    throw new Error('Canvas WebWorker Deadlock');
+  }
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current || workerRef.current) return;

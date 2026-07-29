@@ -15,4 +15,6 @@ export type WorkerMessage =
   | { type: 'INIT'; canvas: OffscreenCanvas; pixelRatio: number; width: number; height: number }
   | { type: 'DRAW_STROKE'; stroke: StrokeData }
   | { type: 'CLEAR' }
-  | { type: 'RESIZE'; width: number; height: number; pixelRatio: number };
+  | { type: 'RESIZE'; width: number; height: number; pixelRatio: number }
+  | { type: 'PING' }
+  | { type: 'PONG' };

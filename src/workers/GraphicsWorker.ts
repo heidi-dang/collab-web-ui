@@ -7,6 +7,11 @@ let animationFrameId: number | null = null;
 self.onmessage = (e: MessageEvent) => {
   const { type, payload } = e.data;
 
+  if (type === 'PING') {
+    self.postMessage({ type: 'PONG' });
+    return;
+  }
+
   if (type === 'INIT_CANVAS') {
     const { canvas } = payload;
     if (canvas) {
