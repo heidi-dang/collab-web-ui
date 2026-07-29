@@ -1,0 +1,6 @@
+{
+  "name": "omp collab",
+  "description": "Live agent session guest client for omp collab sessions with streaming transcript, tool calls, and subagent views.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
