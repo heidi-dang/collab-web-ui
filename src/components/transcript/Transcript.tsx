@@ -382,19 +382,19 @@ export function Transcript(props: TranscriptProps): ReactNode {
 					className={`tr-autoscroll-btn${autoScrollLocked ? " tr-autoscroll-locked" : " tr-autoscroll-unlocked"}`}
 					onClick={toggleAutoScrollLock}
 					title={autoScrollLocked ? "Auto-scroll is LOCKED to bottom (Click to unlock & pause)" : "Auto-scroll is PAUSED (Click to lock to bottom)"}
+					aria-label={autoScrollLocked ? "Auto-scroll locked" : "Auto-scroll paused"}
 				>
 					{autoScrollLocked ? <Lock size={12} className="tr-lock-icon" /> : <Unlock size={12} className="tr-lock-icon" />}
-					<span>{autoScrollLocked ? "Auto-scroll: On" : "Auto-scroll: Paused"}</span>
 				</button>
 				{showScrollDown && (
 					<button
 						type="button"
 						className={`tr-scroll-down${hasNewActivity ? " tr-scroll-down--new" : ""}`}
 						onClick={scrollToBottom}
-						title="Scroll to bottom & lock auto-scroll"
+						title={hasNewActivity ? "New messages (click to scroll to bottom)" : "Scroll to bottom"}
+						aria-label={hasNewActivity ? "New messages" : "Scroll to bottom"}
 					>
 						<ArrowDown size={13} />
-						<span>{hasNewActivity ? "New messages ↓" : "Bottom ↓"}</span>
 					</button>
 				)}
 			</div>

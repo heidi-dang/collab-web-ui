@@ -65,6 +65,10 @@ export interface GuestSnapshot {
 	uiRequest: CollabUiRequest | null;
 	/** Capped at 50, newest last. */
 	notices: readonly Notice[];
+	/** Real-time WebSocket round-trip latency in ms. */
+	latencyMs: number | null;
+	/** Timestamp of last received WebSocket frame/heartbeat. */
+	lastHeartbeatAt: number | null;
 }
 
 const MAX_NOTICES = 50;
@@ -118,6 +122,9 @@ export class GuestClient {
 	#uiRequest: CollabUiRequest | null = null;
 	#uiRequestQueue: CollabUiRequest[] = [];
 	#notices: readonly Notice[] = [];
+	#latencyMs: number | null = null;
+	#lastHeartbeatAt: number | null = Date.now();
+	#pingTimer: ReturnType<typeof setInterval> | null = null;
 	#snapshot: GuestSnapshot;
 
 	/** @throws Error when the link does not parse. */
@@ -134,6 +141,21 @@ export class GuestClient {
 		};
 		this.#socket.onClose = (reason, willReconnect) => this.#handleClose(reason, willReconnect);
 		this.#snapshot = this.#buildSnapshot();
+		this.#startPingLoop();
+	}
+
+	#startPingLoop(): void {
+		if (this.#pingTimer !== null) return;
+		this.#pingTimer = setInterval(() => {
+			if (this.#socket.isOpen && (this.#phase === "live" || this.#phase === "waiting")) {
+				const start = performance.now();
+				void this.fetchTranscript("__health_ping__", 0).then(() => {
+					this.#latencyMs = Math.round(performance.now() - start);
+					this.#lastHeartbeatAt = Date.now();
+					this.#commit();
+				});
+			}
+		}, 3500);
 	}
 
 	connect(): void {
@@ -152,6 +174,10 @@ export class GuestClient {
 	}
 
 	close(): void {
+		if (this.#pingTimer !== null) {
+			clearInterval(this.#pingTimer);
+			this.#pingTimer = null;
+		}
 		this.#clearWelcomeTimer();
 		this.#clearSnapshotProgressTimer();
 		this.#socket.close();
@@ -212,6 +238,7 @@ export class GuestClient {
 	}
 
 	#handleOpen(): void {
+		this.#lastHeartbeatAt = Date.now();
 		this.#socket.send({ t: "hello", proto: COLLAB_PROTO, name: this.#name, writeToken: this.#writeToken });
 		this.#phase = this.#everConnected ? "reconnecting" : "waiting";
 		this.#everConnected = true;
@@ -269,6 +296,7 @@ export class GuestClient {
 
 	/** Surfaces apply failures instead of letting the socket's recv chain swallow them. */
 	#applyFrameSafe(frame: HostFrame): void {
+		this.#lastHeartbeatAt = Date.now();
 		try {
 			this.#applyFrame(frame);
 		} catch (err) {
@@ -510,6 +538,8 @@ export class GuestClient {
 			readOnly: this.#readOnly,
 			uiRequest: this.#uiRequest,
 			notices: this.#notices,
+			latencyMs: this.#latencyMs,
+			lastHeartbeatAt: this.#lastHeartbeatAt,
 		};
 	}
 

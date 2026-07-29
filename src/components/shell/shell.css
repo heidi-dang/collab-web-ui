@@ -443,6 +443,60 @@
 	padding-bottom: 1px;
 }
 
+.sh-system-health {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	max-width: 880px;
+	margin: 8px auto 0;
+	padding-top: 6px;
+	border-top: 1px solid rgba(255, 255, 255, 0.06);
+	font-family: var(--font-mono);
+	font-size: 10px;
+	color: var(--fg-faint);
+	user-select: none;
+}
+
+.sh-health-status {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.sh-health-label {
+	font-weight: 500;
+	letter-spacing: 0.02em;
+	color: var(--fg-muted);
+}
+
+.sh-health-metrics {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.sh-health-metric {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.sh-health-icon {
+	color: var(--accent);
+}
+
+.sh-health-icon-wifi {
+	color: var(--ok);
+}
+
+.sh-health-value {
+	color: var(--fg-muted);
+}
+
+.sh-health-divider {
+	opacity: 0.3;
+}
+
 .sh-composer-ask {
 	display: grid;
 	gap: 8px;
