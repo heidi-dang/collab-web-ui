@@ -75,7 +75,10 @@ export function App(): ReactNode {
 			// storage unavailable (private mode) — non-fatal
 		}
 		credsRef.current = { link, name };
-		window.location.hash = link;
+		const formatted = link.startsWith("#") ? link : `#${link}`;
+		if (window.location.hash !== formatted) {
+			window.location.hash = formatted;
+		}
 		setConnectError(null);
 		setClient(prev => {
 			prev?.close();

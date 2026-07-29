@@ -258,16 +258,14 @@ export function Transcript(props: TranscriptProps): ReactNode {
 	const [hasNewActivity, setHasNewActivity] = useState(false);
 
 	const toggleAutoScrollLock = useCallback(() => {
-		setAutoScrollLocked(prev => {
-			const next = !prev;
-			lockRef.current = next;
-			if (next && rootRef.current) {
-				rootRef.current.scrollTo({ top: rootRef.current.scrollHeight, behavior: "smooth" });
-				setShowScrollDown(false);
-				setHasNewActivity(false);
-			}
-			return next;
-		});
+		const next = !lockRef.current;
+		lockRef.current = next;
+		setAutoScrollLocked(next);
+		if (next && rootRef.current) {
+			rootRef.current.scrollTo({ top: rootRef.current.scrollHeight, behavior: "smooth" });
+			setShowScrollDown(false);
+			setHasNewActivity(false);
+		}
 	}, []);
 
 	const handleScroll = useCallback(() => {

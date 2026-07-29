@@ -190,7 +190,6 @@ export function AgentsPanel(props: {
 										<Hash size={12} className={isActive ? "text-indigo" : "text-faint"} />
 										{session.name}
 									</span>
-									<span className="ag-ws-hash">{session.hash}</span>
 								</div>
 								{isActive ? (
 									<span className="ag-chip ag-chip--running">Connected</span>

@@ -97,13 +97,18 @@ export const useSessionManager = () => {
   }, [switchSession]);
 
   const removeSession = useCallback((id: string) => {
+    let nextHash: string | null = null;
     setSessions((prev) => {
+      const target = prev.find((s) => s.id === id);
       const filtered = prev.filter((s) => s.id !== id);
-      if (filtered.length > 0 && prev.find((s) => s.id === id)?.hash === activeHash) {
-        switchSession(filtered[0].hash);
+      if (filtered.length > 0 && target?.hash === activeHash) {
+        nextHash = filtered[0].hash;
       }
       return filtered;
     });
+    if (nextHash) {
+      switchSession(nextHash);
+    }
   }, [activeHash, switchSession]);
 
   return {
