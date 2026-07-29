@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { GuestSnapshot } from "../../lib/client";
 import { fmtCost, fmtPercent, fmtTokens, shortenPath } from "../../lib/format";
 import { ThemeToggle } from "./ThemeToggle";
+import { AnimatedCounter } from "../ui/AnimatedCounter";
 
 export interface HeaderBarProps {
 	snapshot: GuestSnapshot;
@@ -113,7 +114,7 @@ export function HeaderBar({
 					title={`Real-time estimated cost: $${metrics.totalCost.toFixed(4)} USD · Click for detailed Analytics`}
 				>
 					<Coins size={11} className="sh-chip-icon sh-chip-icon-cost" />
-					<span>{fmtCost(metrics.totalCost)}</span>
+					<AnimatedCounter value={metrics.totalCost} decimals={4} prefix="$" />
 				</button>
 
 				{pct != null && (
