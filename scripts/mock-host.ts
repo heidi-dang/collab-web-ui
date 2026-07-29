@@ -30,23 +30,31 @@ const STEP_INTERVAL_MS = 40;
 const TICK_INTERVAL_MS = 2_000;
 const AGENTS_SNAPSHOT_EVERY = 5;
 
-function parsePort(argv: string[]): number {
-	let raw: string | undefined;
+function parseOptions(argv: string[]) {
+	let port = DEFAULT_PORT;
+	let packetLoss = 0;
+	let jitterMs = 0;
+	let chaos = false;
+
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i]!;
-		if (arg === "--port") raw = argv[i + 1];
-		else if (arg.startsWith("--port=")) raw = arg.slice("--port=".length);
+		if (arg === "--port" && argv[i + 1]) port = Number(argv[i + 1]);
+		else if (arg.startsWith("--port=")) port = Number(arg.slice("--port=".length));
+		else if (arg === "--chaos") chaos = true;
+		else if (arg.startsWith("--packet-loss=")) packetLoss = Number(arg.slice("--packet-loss=".length));
+		else if (arg.startsWith("--jitter=")) jitterMs = Number(arg.slice("--jitter=".length));
 	}
-	if (raw === undefined) return DEFAULT_PORT;
-	const port = Number(raw);
-	if (!Number.isInteger(port) || port < 1 || port > 65_535) {
-		console.error(`mock-host: invalid --port ${raw}`);
-		process.exit(1);
-	}
-	return port;
+
+	if (chaos && packetLoss === 0) packetLoss = 10;
+	if (chaos && jitterMs === 0) jitterMs = 40;
+
+	return { port, packetLoss, jitterMs };
 }
 
-const port = parsePort(Bun.argv.slice(2));
+const { port, packetLoss, jitterMs } = parseOptions(Bun.argv.slice(2));
+if (packetLoss > 0 || jitterMs > 0) {
+	console.log(`mock-host [CHAOS MODE]: packet-loss=${packetLoss}%, jitter=${jitterMs}ms`);
+}
 const relay = startLocalRelay(port);
 const roomId = generateRoomId();
 const rawKey = generateRoomKey();
@@ -81,9 +89,21 @@ let recvChain: Promise<void> = Promise.resolve();
 
 /** Seal and send a frame; peerId 0 broadcasts, N targets that guest. */
 function sendFrame(frame: HostFrame, targetPeer = 0): void {
+	// Chaos mode simulation: drop non-essential frames under packetLoss probability
+	if (packetLoss > 0 && frame.t !== "welcome" && frame.t !== "bye" && frame.t !== "error") {
+		if (Math.random() * 100 < packetLoss) {
+			console.log(`[CHAOS DROP] simulated dropped frame: ${frame.t}`);
+			return;
+		}
+	}
+
 	sendChain = sendChain
 		.then(async () => {
 			if (ws.readyState !== WebSocket.OPEN) return;
+			if (jitterMs > 0) {
+				const delay = Math.floor(Math.random() * jitterMs);
+				await new Promise(r => setTimeout(r, delay));
+			}
 			const sealed = await seal(key, frame);
 			ws.send(packEnvelope(targetPeer, sealed));
 		})

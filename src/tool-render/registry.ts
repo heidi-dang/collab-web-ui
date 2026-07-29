@@ -83,3 +83,32 @@ const RENDERERS: Record<string, ToolRenderer> = {
 export function resolveToolRenderer(name: string): ToolRenderer {
 	return RENDERERS[name] ?? genericRenderer;
 }
+
+export function registerToolRenderer(name: string, renderer: ToolRenderer): void {
+	RENDERERS[name] = renderer;
+}
+
+export function registerToolRendererAlias(alias: string, targetName: string): void {
+	if (RENDERERS[targetName]) {
+		RENDERERS[alias] = RENDERERS[targetName];
+	}
+}
+
+export async function registerDynamicToolRenderer(
+	name: string,
+	loader: () => Promise<{ default: ToolRenderer } | { [key: string]: ToolRenderer }>
+): Promise<ToolRenderer> {
+	try {
+		const mod = await loader();
+		const renderer = "default" in mod ? mod.default : Object.values(mod)[0];
+		if (renderer) {
+			RENDERERS[name] = renderer;
+			return renderer;
+		}
+		return genericRenderer;
+	} catch (err) {
+		console.warn(`collab-web: failed to load dynamic tool renderer '${name}':`, err);
+		return genericRenderer;
+	}
+}
+
