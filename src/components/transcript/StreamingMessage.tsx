@@ -1,10 +1,9 @@
 import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useSmoothStream } from '../../hooks/useSmoothStream';
 import { AgentTaskTracker, AgentTask } from './AgentTaskTracker';
 import { EditableReportBox } from './EditableReportBox';
+import { VirtualizedCodeBlock } from './VirtualizedCodeBlock';
 import { fixUnclosedFences } from '../../lib/markdown-utils';
 
 interface StreamingMessageProps {
@@ -43,43 +42,8 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = memo(({ content
                 return <EditableReportBox initialContent={rawContent} />;
               }
 
-              // Real-time syntax highlighting for standard code blocks
-              return (
-                <div 
-                  className="relative group my-4 overflow-hidden rounded-xl border border-white/10 bg-zinc-950 shadow-2xl"
-                  // CSS Containment strictly prevents the rapid height expansion 
-                  // from triggering global DOM layout recalculations during stream
-                  style={{ contain: 'layout paint' }} 
-                >
-                  <div className="flex items-center justify-between border-b border-white/5 bg-zinc-900/80 px-4 py-2">
-                    <span className="text-xs font-mono text-zinc-400 select-none">{lang}</span>
-                    <button 
-                      type="button"
-                      onClick={() => navigator.clipboard.writeText(rawContent)}
-                      className="text-[10px] uppercase font-bold text-zinc-500 hover:text-indigo-400 transition-colors cursor-pointer"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <div className="overflow-x-auto overscroll-contain">
-                    <SyntaxHighlighter
-                      style={vscDarkPlus}
-                      language={lang}
-                      PreTag="div"
-                      customStyle={{
-                        margin: 0,
-                        background: 'transparent',
-                        padding: '1rem',
-                        fontSize: '0.85rem',
-                        fontFamily: '"Geist Mono", "Fira Code", monospace',
-                      }}
-                      {...props}
-                    >
-                      {rawContent}
-                    </SyntaxHighlighter>
-                  </div>
-                </div>
-              );
+              // Real-time WASM syntax highlighting + Virtualized Code Viewport
+              return <VirtualizedCodeBlock code={rawContent} language={lang} />;
             }
 
             // Inline code styling

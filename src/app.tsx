@@ -11,6 +11,7 @@ import { HeaderBar } from "./components/shell/HeaderBar";
 import { Toasts } from "./components/shell/Toasts";
 import { Transcript } from "./components/transcript/Transcript";
 import { CommandPalette, AIChatPanel, OffscreenCanvasBoard, FloatingToolbar, ToolType } from "./components/collaborative";
+import { CanvasErrorBoundary } from "./components/layout/CanvasErrorBoundary";
 import { parseCollabLink } from "./lib/link";
 import { useSessionManager } from "./hooks/useSessionManager";
 import { useCanvasSocket } from "./hooks/useCanvasSocket";
@@ -257,10 +258,12 @@ function Session({ client, activeHash, activeSessionName, isOnline, connectionEr
 			{/* 3. Offscreen Canvas Board with key={activeHash} to destroy & re-instantiate worker on workspace switch */}
 			{canvasOverlayActive && activeHash && (
 				<div className="fixed inset-0 z-10 pointer-events-auto">
-					<OffscreenCanvasBoard
-						key={`canvas-${activeHash}`}
-						onStrokeComplete={emitStroke}
-					/>
+					<CanvasErrorBoundary onReset={() => setCanvasOverlayActive(false)}>
+						<OffscreenCanvasBoard
+							key={`canvas-${activeHash}`}
+							onStrokeComplete={emitStroke}
+						/>
+					</CanvasErrorBoundary>
 					<FloatingToolbar
 						activeTool={activeTool}
 						onToolChange={setActiveTool}
