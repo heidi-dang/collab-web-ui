@@ -329,7 +329,7 @@ export class GuestClient {
 		this.#lastHeartbeatAt = Date.now();
 
 		// Guard: Reject non-welcome frames if welcome handshake has not completed yet
-		if (!this.#welcomed && frame.t !== "welcome" && frame.t !== "error" && frame.t !== "bye") {
+		if (!this.#welcomed && frame.t !== "welcome" && frame.t !== "error" && frame.t !== "bye" && frame.t !== "transcript") {
 			console.warn(`collab: ignored premature frame '${frame.t}' before welcome handshake`);
 			return;
 		}

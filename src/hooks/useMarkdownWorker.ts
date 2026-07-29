@@ -52,8 +52,7 @@ export const useMarkdownWorker = (text: string): UseMarkdownWorkerResult => {
 			if (e.data && e.data.id === id) {
 				clearTimeout(timeoutId);
 				const safeHtml = DOMPurify.sanitize(e.data.html, {
-					ADD_ATTR: ["target", "rel", "class", "style"],
-					ADD_TAGS: ["style"],
+					ADD_ATTR: ["target", "rel", "class"],
 				});
 				setHtml(safeHtml);
 				setLoading(false);

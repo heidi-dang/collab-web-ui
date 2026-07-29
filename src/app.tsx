@@ -271,7 +271,7 @@ function Session({ client, activeHash, activeSessionName, isOnline, connectionEr
 			{/* Global Keyboard Command Palette */}
 			<CommandPalette
 				onToolChange={(tool) => {
-					setActiveTool(tool === 'draw' ? 'draw' : tool === 'select' ? 'select' : 'select');
+					setActiveTool(tool);
 					setCanvasOverlayActive(true);
 				}}
 				onToggleAIChat={() => setAiChatOpen(prev => !prev)}
