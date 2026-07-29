@@ -116,11 +116,16 @@ export function App(): ReactNode {
 		};
 	}, []);
 
-	// Deep link: a page load with a hash auto-connects.
+	// Deep link & session hash change: auto-connect or reconnect when activeHash changes.
 	useEffect(() => {
-		const link = hashLink();
-		if (link) connect(link, storedName());
-	}, [connect]);
+		const targetLink = activeHash.startsWith("#") ? activeHash.slice(1) : activeHash;
+		if (targetLink && targetLink.length > 0) {
+			const currentConnected = credsRef.current?.link;
+			if (!client || currentConnected !== targetLink) {
+				connect(targetLink, storedName());
+			}
+		}
+	}, [activeHash, client, connect]);
 
 	useEffect(() => {
 		if (!client) document.title = "omp collab";
@@ -129,7 +134,18 @@ export function App(): ReactNode {
 	if (!client) {
 		return <ConnectScreen defaultName={storedName()} error={connectError} onConnect={connect} />;
 	}
-	return <Session client={client} activeHash={activeHash} isOnline={isOnline} connectionError={connectionError} emitStroke={emitStroke} onLeave={leave} onRejoin={rejoin} />;
+	return (
+		<Session
+			key={activeHash}
+			client={client}
+			activeHash={activeHash}
+			isOnline={isOnline}
+			connectionError={connectionError}
+			emitStroke={emitStroke}
+			onLeave={leave}
+			onRejoin={rejoin}
+		/>
+	);
 }
 
 interface SessionProps {
