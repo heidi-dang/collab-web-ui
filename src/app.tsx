@@ -48,7 +48,7 @@ export function App(): ReactNode {
 	const [connectError, setConnectError] = useState<string | null>(null);
 	const credsRef = useRef<Creds | null>(null);
 
-	const { activeHash, sessions, addSession } = useSessionManager();
+	const { activeHash, sessions, addSession, switchSession } = useSessionManager();
 	const { isOnline, connectionError, emitStroke } = useCanvasSocket(activeHash);
 
 	const activeSessionName = useMemo(() => {
@@ -104,24 +104,38 @@ export function App(): ReactNode {
 		if (window.location.hash !== formatted) {
 			window.location.hash = formatted;
 		}
+		switchSession(formatted);
 		setConnectError(null);
 		setClient(prev => {
 			prev?.close();
 			return next;
 		});
-	}, []);
+	}, [switchSession]);
 
 	const leave = useCallback((): void => {
 		setClient(prev => {
 			prev?.close();
 			return null;
 		});
+		credsRef.current = null;
+		if (window.location.hash) {
+			window.location.hash = "";
+		}
+		switchSession("");
 		history.replaceState(null, "", window.location.pathname + window.location.search);
-	}, []);
+	}, [switchSession]);
 
 	const rejoin = useCallback((): void => {
 		const creds = credsRef.current;
-		if (creds) connect(creds.link, creds.name);
+		if (creds) {
+			setClient(prev => {
+				prev?.close();
+				return null;
+			});
+			setTimeout(() => {
+				connect(creds.link, creds.name);
+			}, 50);
+		}
 	}, [connect]);
 
 	// Visual Viewport: adjust app height to fit screen space when mobile keyboard opens.

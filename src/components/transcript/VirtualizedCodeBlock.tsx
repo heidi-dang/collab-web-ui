@@ -97,7 +97,7 @@ export const VirtualizedCodeBlock: React.FC<VirtualizedCodeBlockProps> = ({ code
       {/* Code Area */}
       <div
         ref={parentRef}
-        className={`overflow-auto overscroll-contain p-3 ${isLarge ? 'max-h-[480px]' : ''}`}
+        className="overflow-auto max-h-[420px] overscroll-contain p-3 w-full"
         style={{ fontFamily: '"Geist Mono", "Fira Code", monospace' }}
       >
         {isLarge ? (
@@ -124,12 +124,12 @@ export const VirtualizedCodeBlock: React.FC<VirtualizedCodeBlockProps> = ({ code
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
-                  className="flex items-baseline leading-[22px] whitespace-pre font-mono"
+                  className="flex items-baseline leading-[22px] whitespace-pre font-mono min-w-max"
                 >
                   <span className="w-8 shrink-0 select-none text-[10px] text-zinc-600 text-right pr-3">
                     {idx + 1}
                   </span>
-                  <span className="flex-1 overflow-x-auto">
+                  <span className="flex-1 pr-4">
                     {lineTokens
                       ? lineTokens.map((token, tidx) => (
                           <span key={tidx} style={{ color: token.color }}>
@@ -143,15 +143,15 @@ export const VirtualizedCodeBlock: React.FC<VirtualizedCodeBlockProps> = ({ code
             })}
           </div>
         ) : (
-          <div className="space-y-0 font-mono">
+          <div className="space-y-0 font-mono min-w-max">
             {lines.map((rawLine, idx) => {
               const lineTokens = tokens?.[idx];
               return (
-                <div key={idx} className="flex items-baseline leading-[22px] whitespace-pre">
+                <div key={idx} className="flex items-baseline leading-[22px] whitespace-pre pr-4">
                   <span className="w-8 shrink-0 select-none text-[10px] text-zinc-600 text-right pr-3">
                     {idx + 1}
                   </span>
-                  <span className="flex-1 overflow-x-auto">
+                  <span className="flex-1">
                     {lineTokens
                       ? lineTokens.map((token, tidx) => (
                           <span key={tidx} style={{ color: token.color }}>
