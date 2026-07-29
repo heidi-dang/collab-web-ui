@@ -47,8 +47,17 @@ export function App(): ReactNode {
 	const [client, setClient] = useState<GuestClient | null>(null);
 	const [connectError, setConnectError] = useState<string | null>(null);
 	const credsRef = useRef<Creds | null>(null);
+	const clientRef = useRef<GuestClient | null>(null);
 
-	const { activeHash, sessions, addSession } = useSessionManager();
+	const disconnectCurrentClient = useCallback(() => {
+		if (clientRef.current) {
+			const active = clientRef.current;
+			clientRef.current = null;
+			active.close();
+		}
+	}, []);
+
+	const { activeHash, sessions, addSession, switchSession } = useSessionManager();
 	const { isOnline, connectionError, emitStroke } = useCanvasSocket(activeHash);
 
 	const activeSessionName = useMemo(() => {
@@ -93,6 +102,8 @@ export function App(): ReactNode {
 			setConnectError(err instanceof Error ? err.message : String(err));
 			return;
 		}
+		disconnectCurrentClient();
+		clientRef.current = next;
 		next.connect();
 		try {
 			localStorage.setItem(NAME_KEY, name);
@@ -104,25 +115,32 @@ export function App(): ReactNode {
 		if (window.location.hash !== formatted) {
 			window.location.hash = formatted;
 		}
+		switchSession(formatted);
 		setConnectError(null);
-		setClient(prev => {
-			prev?.close();
-			return next;
-		});
-	}, []);
+		setClient(next);
+	}, [disconnectCurrentClient, switchSession]);
 
 	const leave = useCallback((): void => {
-		setClient(prev => {
-			prev?.close();
-			return null;
-		});
+		disconnectCurrentClient();
+		credsRef.current = null;
+		if (window.location.hash) {
+			window.location.hash = "";
+		}
+		switchSession("");
+		setClient(null);
 		history.replaceState(null, "", window.location.pathname + window.location.search);
-	}, []);
+	}, [disconnectCurrentClient, switchSession]);
 
 	const rejoin = useCallback((): void => {
 		const creds = credsRef.current;
-		if (creds) connect(creds.link, creds.name);
-	}, [connect]);
+		if (creds) {
+			disconnectCurrentClient();
+			setClient(null);
+			setTimeout(() => {
+				connect(creds.link, creds.name);
+			}, 50);
+		}
+	}, [disconnectCurrentClient, connect]);
 
 	// Visual Viewport: adjust app height to fit screen space when mobile keyboard opens.
 	useEffect(() => {

@@ -237,10 +237,36 @@ export class GuestClient {
 		this.#applyFrameSafe(frame);
 	}
 
+	#transitionTo(nextPhase: ConnectionPhase, reason?: string): boolean {
+		const current = this.#phase;
+		if (current === nextPhase) return true;
+
+		// FSM transition matrix validation
+		const VALID_TRANSITIONS: Record<ConnectionPhase, ConnectionPhase[]> = {
+			connecting: ["waiting", "ended"],
+			waiting: ["live", "reconnecting", "ended"],
+			live: ["reconnecting", "ended"],
+			reconnecting: ["waiting", "ended"],
+			ended: ["connecting"],
+		};
+
+		if (!VALID_TRANSITIONS[current]?.includes(nextPhase)) {
+			console.warn(`collab: invalid FSM phase transition from '${current}' to '${nextPhase}'`);
+			return false;
+		}
+
+		this.#phase = nextPhase;
+		if (nextPhase === "ended" && reason !== undefined) {
+			this.#endedReason = reason;
+		}
+		return true;
+	}
+
 	#handleOpen(): void {
 		this.#lastHeartbeatAt = Date.now();
 		this.#socket.send({ t: "hello", proto: COLLAB_PROTO, name: this.#name, writeToken: this.#writeToken });
-		this.#phase = this.#everConnected ? "reconnecting" : "waiting";
+		const nextPhase = this.#everConnected ? "reconnecting" : "waiting";
+		this.#transitionTo(nextPhase);
 		this.#everConnected = true;
 		this.#commit();
 	}
@@ -249,7 +275,7 @@ export class GuestClient {
 		this.#clearSnapshotProgressTimer();
 		if (this.#phase === "ended") return;
 		if (willReconnect) {
-			this.#phase = "reconnecting";
+			this.#transitionTo("reconnecting");
 			this.#commit();
 			return;
 		}
@@ -260,8 +286,7 @@ export class GuestClient {
 		if (this.#phase === "ended") return;
 		this.#clearWelcomeTimer();
 		this.#clearSnapshotProgressTimer();
-		this.#phase = "ended";
-		this.#endedReason = reason;
+		this.#transitionTo("ended", reason);
 		for (const [, pending] of this.#pendingTranscripts) {
 			clearTimeout(pending.timer);
 			pending.resolve(null);
@@ -296,7 +321,15 @@ export class GuestClient {
 
 	/** Surfaces apply failures instead of letting the socket's recv chain swallow them. */
 	#applyFrameSafe(frame: HostFrame): void {
+		if (this.#phase === "ended") return;
 		this.#lastHeartbeatAt = Date.now();
+
+		// Guard: Reject non-welcome frames if welcome handshake has not completed yet
+		if (!this.#welcomed && frame.t !== "welcome" && frame.t !== "error" && frame.t !== "bye") {
+			console.warn(`collab: ignored premature frame '${frame.t}' before welcome handshake`);
+			return;
+		}
+
 		try {
 			this.#applyFrame(frame);
 		} catch (err) {
@@ -331,7 +364,7 @@ export class GuestClient {
 				this.#clearWelcomeTimer();
 				if (frame.entryCount === 0) {
 					this.#clearSnapshotProgressTimer();
-					this.#phase = "live";
+					this.#transitionTo("live");
 				} else {
 					this.#armSnapshotProgressTimer();
 				}
@@ -344,7 +377,7 @@ export class GuestClient {
 				this.#entries = [...this.#entries, ...frame.entries];
 				if (frame.final) {
 					this.#clearSnapshotProgressTimer();
-					this.#phase = "live";
+					this.#transitionTo("live");
 				} else {
 					this.#armSnapshotProgressTimer();
 				}

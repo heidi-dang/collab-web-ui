@@ -1,6 +1,8 @@
 import type { FormEvent, ReactNode } from "react";
 import { useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
+import { DEFAULT_RELAY_URL, formatCollabLink, generateRoomId } from "../../lib/link";
+import { Plus } from "lucide-react";
 
 export interface ConnectScreenProps {
 	defaultName: string;
@@ -17,11 +19,25 @@ export function ConnectScreen({ defaultName, error, onConnect }: ConnectScreenPr
 		e.preventDefault();
 		const trimmed = link.trim();
 		if (!trimmed) {
-			setLocalError("paste a join link first");
+			setLocalError("paste a join link or create a new room below");
 			return;
 		}
 		setLocalError(null);
 		onConnect(trimmed, name.trim() || "guest");
+	};
+
+	const handleCreateNewRoom = () => {
+		try {
+			const roomId = generateRoomId();
+			const keyBytes = new Uint8Array(32);
+			crypto.getRandomValues(keyBytes);
+			const writeTokenBytes = new Uint8Array(16);
+			crypto.getRandomValues(writeTokenBytes);
+			const newLink = formatCollabLink(DEFAULT_RELAY_URL, roomId, keyBytes, writeTokenBytes);
+			onConnect(newLink, name.trim() || "guest");
+		} catch (err) {
+			setLocalError("Failed to generate room link: " + (err instanceof Error ? err.message : String(err)));
+		}
 	};
 
 	const shown = localError ?? error;
@@ -44,12 +60,12 @@ export function ConnectScreen({ defaultName, error, onConnect }: ConnectScreenPr
 						type="text"
 						value={link}
 						onChange={e => setLink(e.target.value)}
-						placeholder="ws://host:port/r/room.key"
+						placeholder="ws://host:port/r/room.key or paste link"
 						spellCheck={false}
 						autoComplete="off"
 						autoFocus
 					/>
-					<span className="sh-field-hint">paste a /collab link from any omp session</span>
+					<span className="sh-field-hint">paste a /collab link or create a fresh room</span>
 				</label>
 				<label className="sh-field">
 					<span className="sh-field-label">display name</span>
@@ -65,9 +81,19 @@ export function ConnectScreen({ defaultName, error, onConnect }: ConnectScreenPr
 					/>
 				</label>
 				{shown && <div className="sh-connect-error">{shown}</div>}
-				<button className="sh-btn sh-btn-primary sh-connect-submit" type="submit">
-					Connect
-				</button>
+				<div className="flex gap-2 pt-2">
+					<button className="sh-btn sh-btn-primary flex-1 justify-center py-2.5" type="submit">
+						Connect
+					</button>
+					<button
+						className="sh-btn flex-1 justify-center py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-medium"
+						type="button"
+						onClick={handleCreateNewRoom}
+					>
+						<Plus size={14} className="mr-1.5" />
+						Create Room
+					</button>
+				</div>
 			</form>
 		</div>
 	);

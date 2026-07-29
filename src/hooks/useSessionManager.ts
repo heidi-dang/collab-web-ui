@@ -40,9 +40,7 @@ export const useSessionManager = () => {
   useEffect(() => {
     const handleHashChange = () => {
       const newHash = window.location.hash;
-      if (newHash) {
-        setActiveHash(newHash);
-      }
+      setActiveHash(newHash);
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -73,7 +71,7 @@ export const useSessionManager = () => {
   }, [sessions]);
 
   const switchSession = useCallback((hash: string) => {
-    const formattedHash = hash.startsWith('#') ? hash : `#${hash}`;
+    const formattedHash = hash ? (hash.startsWith('#') ? hash : `#${hash}`) : '';
     if (window.location.hash !== formattedHash) {
       window.location.hash = formattedHash;
     }
