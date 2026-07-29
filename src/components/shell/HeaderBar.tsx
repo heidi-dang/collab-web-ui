@@ -1,4 +1,4 @@
-import { Coins, Cpu, LogOut, PanelRight, Zap } from "lucide-react";
+import { BarChart3, Coins, Cpu, LogOut, PanelRight, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import type { GuestSnapshot } from "../../lib/client";
@@ -11,9 +11,17 @@ export interface HeaderBarProps {
 	railOpen: boolean;
 	onToggleRail(): void;
 	onLeave(): void;
+	onOpenAnalytics?(): void;
 }
 
-export function HeaderBar({ snapshot, subCount, railOpen, onToggleRail, onLeave }: HeaderBarProps): ReactNode {
+export function HeaderBar({
+	snapshot,
+	subCount,
+	railOpen,
+	onToggleRail,
+	onLeave,
+	onOpenAnalytics,
+}: HeaderBarProps): ReactNode {
 	const { header, state, phase, readOnly, entries, stream, progress } = snapshot;
 	const title = header?.title ?? state?.sessionName ?? "session";
 	const usage = state?.contextUsage;
@@ -88,21 +96,25 @@ export function HeaderBar({ snapshot, subCount, railOpen, onToggleRail, onLeave 
 						{state.model.name}
 					</span>
 				)}
-				{/* Real-time Token Usage & Cost display */}
-				<span
-					className="sh-chip sh-chip-usage"
-					title={`Real-time token count: ${metrics.totalTokens.toLocaleString()} tokens`}
+				{/* Real-time Token Usage & Cost display - Click to open Analytics Drawer */}
+				<button
+					type="button"
+					className="sh-chip sh-chip-usage sh-chip-interactive"
+					onClick={onOpenAnalytics}
+					title={`Real-time token count: ${metrics.totalTokens.toLocaleString()} tokens · Click for detailed Analytics`}
 				>
 					<Zap size={11} className="sh-chip-icon sh-chip-icon-zap" />
 					<span>{fmtTokens(metrics.totalTokens)}</span>
-				</span>
-				<span
-					className="sh-chip sh-chip-cost"
-					title={`Real-time estimated cost: $${metrics.totalCost.toFixed(4)} USD`}
+				</button>
+				<button
+					type="button"
+					className="sh-chip sh-chip-cost sh-chip-interactive"
+					onClick={onOpenAnalytics}
+					title={`Real-time estimated cost: $${metrics.totalCost.toFixed(4)} USD · Click for detailed Analytics`}
 				>
 					<Coins size={11} className="sh-chip-icon sh-chip-icon-cost" />
 					<span>{fmtCost(metrics.totalCost)}</span>
-				</span>
+				</button>
 
 				{pct != null && (
 					<span
@@ -130,6 +142,16 @@ export function HeaderBar({ snapshot, subCount, railOpen, onToggleRail, onLeave 
 				)}
 				<span className={`sh-dot sh-dot-${phase}`} title={phase} />
 				<ThemeToggle />
+				{onOpenAnalytics && (
+					<button
+						type="button"
+						className="sh-btn sh-btn-icon"
+						onClick={onOpenAnalytics}
+						title="Token Analytics & Cost Breakdown"
+					>
+						<BarChart3 size={14} />
+					</button>
+				)}
 				<button
 					type="button"
 					className={railOpen ? "sh-btn sh-btn-icon sh-btn-on" : "sh-btn sh-btn-icon"}

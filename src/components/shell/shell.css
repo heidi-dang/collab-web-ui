@@ -184,10 +184,14 @@
 	background: rgba(127, 219, 202, 0.1);
 }
 
-.sh-chip-cost {
-	color: #ecc48d;
-	border-color: rgba(236, 196, 141, 0.28);
-	background: rgba(236, 196, 141, 0.1);
+.sh-chip-interactive {
+	cursor: pointer;
+}
+
+.sh-chip-interactive:hover {
+	transform: translateY(-1px);
+	border-color: var(--accent);
+	box-shadow: 0 2px 8px rgba(127, 219, 202, 0.25);
 }
 
 .sh-chip-icon {

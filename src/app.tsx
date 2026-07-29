@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentDrawer } from "./components/agents/AgentDrawer";
 import { AgentsPanel } from "./components/agents/AgentsPanel";
+import { AnalyticsDrawer } from "./components/analytics/AnalyticsDrawer";
 import { Banners } from "./components/shell/Banners";
 import { Composer } from "./components/shell/Composer";
 import { ConnectScreen } from "./components/shell/ConnectScreen";
@@ -123,6 +124,7 @@ function Session({ client, onLeave, onRejoin }: SessionProps): ReactNode {
 	const snap = useGuestSnapshot(client);
 	const [railOpen, setRailOpen] = useState(false);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const [analyticsOpen, setAnalyticsOpen] = useState(false);
 	const autoOpenedRef = useRef(false);
 
 	const subCount = useMemo(() => snap.agents.filter(a => a.kind === "sub").length, [snap.agents]);
@@ -162,6 +164,7 @@ function Session({ client, onLeave, onRejoin }: SessionProps): ReactNode {
 				railOpen={railOpen}
 				onToggleRail={() => setRailOpen(open => !open)}
 				onLeave={onLeave}
+				onOpenAnalytics={() => setAnalyticsOpen(true)}
 			/>
 			<main className="sh-main">
 				<section className="sh-content" data-rail={railOpen ? "true" : "false"}>
@@ -205,6 +208,7 @@ function Session({ client, onLeave, onRejoin }: SessionProps): ReactNode {
 					/>
 				</>
 			)}
+			{analyticsOpen && <AnalyticsDrawer snapshot={snap} onClose={() => setAnalyticsOpen(false)} />}
 			<Banners phase={snap.phase} endedReason={snap.endedReason} onRejoin={onRejoin} onNewLink={onLeave} />
 			<Toasts notices={snap.notices} />
 		</div>
