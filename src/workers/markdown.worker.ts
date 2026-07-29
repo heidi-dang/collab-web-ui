@@ -1,6 +1,29 @@
 import { Marked } from "marked";
+import DOMPurify from "dompurify";
+import { createHighlighter, type Highlighter } from "shiki";
 
-const md = new Marked({
+let highlighter: Highlighter | null = null;
+let initPromise: Promise<void> | null = null;
+
+const initShiki = async () => {
+	try {
+		highlighter = await createHighlighter({
+			themes: ["vsc-dark-plus"],
+			langs: ["javascript", "typescript", "bash", "python", "json", "html", "css"],
+		});
+	} catch (err) {
+		console.warn("markdown.worker: Shiki initialization warning:", err);
+	}
+};
+
+const getInitPromise = () => {
+	if (!initPromise) {
+		initPromise = initShiki();
+	}
+	return initPromise;
+};
+
+const marked = new Marked({
 	gfm: true,
 	breaks: true,
 });
@@ -16,11 +39,34 @@ export interface MarkdownWorkerResponse {
 	error?: string;
 }
 
-self.onmessage = (e: MessageEvent<MarkdownWorkerRequest>) => {
+self.onmessage = async (e: MessageEvent<MarkdownWorkerRequest>) => {
 	const { id, text } = e.data;
 	try {
-		const html = md.parse(text, { async: false }) as string;
-		self.postMessage({ id, html } as MarkdownWorkerResponse);
+		await getInitPromise();
+
+		// Configure marked with custom code renderer if Shiki is available
+		if (highlighter) {
+			marked.use({
+				renderer: {
+					code({ text: codeText, lang }) {
+						const validLang = lang && highlighter?.getLoadedLanguages().includes(lang as any) ? lang : "text";
+						try {
+							return highlighter?.codeToHtml(codeText, { lang: validLang, theme: "vsc-dark-plus" }) || `<pre><code>${codeText}</code></pre>`;
+						} catch {
+							return `<pre><code>${codeText}</code></pre>`;
+						}
+					},
+				},
+			});
+		}
+
+		const rawHtml = marked.parse(text, { async: false }) as string;
+		const cleanHtml = DOMPurify.sanitize(rawHtml, {
+			ADD_ATTR: ["target", "rel", "class", "style"],
+			ADD_TAGS: ["style"],
+		});
+
+		self.postMessage({ id, html: cleanHtml } as MarkdownWorkerResponse);
 	} catch (err) {
 		self.postMessage({
 			id,

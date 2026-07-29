@@ -2,13 +2,27 @@ import { Marked } from "marked";
 import type { ReactNode } from "react";
 import { memo, useMemo } from "react";
 import { EditableReportBox } from "./EditableReportBox";
-
 import { AgentTaskTracker, AgentTask } from "./AgentTaskTracker";
+import { useMarkdownWorker } from "../../hooks/useMarkdownWorker";
 
 interface TextSegment {
 	type: "markdown" | "report" | "tasks";
 	content: string;
 }
+
+const AsyncMarkdownSegment = memo(function AsyncMarkdownSegment({ content }: { content: string }) {
+	const { html, loading } = useMarkdownWorker(content);
+
+	if (loading && !html) {
+		return (
+			<div className="tr-md relative min-h-[1.5rem]">
+				<div className="h-4 w-24 animate-pulse bg-zinc-800/50 rounded my-1" />
+			</div>
+		);
+	}
+
+	return <div dangerouslySetInnerHTML={{ __html: html }} />;
+});
 
 function parseMarkdownSegments(text: string): TextSegment[] {
 	const segments: TextSegment[] = [];
@@ -130,13 +144,7 @@ export const Markdown = memo(function Markdown({ text }: { text: string }): Reac
 						// Fallback if parsing fails
 					}
 				}
-				let html = "";
-				try {
-					html = md.parse(seg.content, { async: false }) as string;
-				} catch {
-					html = escapeHtml(seg.content);
-				}
-				return <div key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
+				return <AsyncMarkdownSegment key={idx} content={seg.content} />;
 			})}
 		</div>
 	);
