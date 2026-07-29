@@ -17,4 +17,5 @@ export type WorkerMessage =
   | { type: 'CLEAR' }
   | { type: 'RESIZE'; width: number; height: number; pixelRatio: number }
   | { type: 'PING' }
-  | { type: 'PONG' };
+  | { type: 'PONG' }
+  | { type: 'TERMINATE' };

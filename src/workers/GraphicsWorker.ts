@@ -34,10 +34,14 @@ self.onmessage = (e: MessageEvent) => {
     }
   }
 
-  if (type === 'STOP') {
+  if (type === 'STOP' || type === 'TERMINATE') {
     if (animationFrameId !== null) {
       cancelAnimationFrame(animationFrameId);
       animationFrameId = null;
+    }
+    ctx = null;
+    if (type === 'TERMINATE') {
+      self.close();
     }
   }
 };

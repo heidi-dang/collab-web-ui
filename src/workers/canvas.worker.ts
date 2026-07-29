@@ -64,6 +64,14 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       }
       break;
     }
+
+    case 'TERMINATE': {
+      strokeHistory.clear();
+      ctx = null;
+      canvas = null;
+      self.close();
+      break;
+    }
   }
 };
 

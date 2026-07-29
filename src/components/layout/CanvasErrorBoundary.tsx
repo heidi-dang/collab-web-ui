@@ -19,6 +19,23 @@ export class CanvasErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Canvas/Worker Crash Detected:', error, errorInfo);
+    
+    // Telemetry Blackbox: report crash to analytics/logging endpoint if available
+    try {
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        const payload = JSON.stringify({
+          event: 'worker_crash',
+          message: error?.message || 'Unknown worker crash',
+          stack: error?.stack,
+          componentStack: errorInfo?.componentStack,
+          timestamp: Date.now(),
+        });
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon('/api/telemetry', blob);
+      }
+    } catch (e) {
+      // Ignore telemetry transport failures
+    }
   }
 
   private handleReset = () => {
