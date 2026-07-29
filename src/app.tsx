@@ -47,6 +47,15 @@ export function App(): ReactNode {
 	const [client, setClient] = useState<GuestClient | null>(null);
 	const [connectError, setConnectError] = useState<string | null>(null);
 	const credsRef = useRef<Creds | null>(null);
+	const clientRef = useRef<GuestClient | null>(null);
+
+	const disconnectCurrentClient = useCallback(() => {
+		if (clientRef.current) {
+			const active = clientRef.current;
+			clientRef.current = null;
+			active.close();
+		}
+	}, []);
 
 	const { activeHash, sessions, addSession, switchSession } = useSessionManager();
 	const { isOnline, connectionError, emitStroke } = useCanvasSocket(activeHash);
@@ -93,6 +102,8 @@ export function App(): ReactNode {
 			setConnectError(err instanceof Error ? err.message : String(err));
 			return;
 		}
+		disconnectCurrentClient();
+		clientRef.current = next;
 		next.connect();
 		try {
 			localStorage.setItem(NAME_KEY, name);
@@ -106,37 +117,30 @@ export function App(): ReactNode {
 		}
 		switchSession(formatted);
 		setConnectError(null);
-		setClient(prev => {
-			prev?.close();
-			return next;
-		});
-	}, [switchSession]);
+		setClient(next);
+	}, [disconnectCurrentClient, switchSession]);
 
 	const leave = useCallback((): void => {
-		setClient(prev => {
-			prev?.close();
-			return null;
-		});
+		disconnectCurrentClient();
 		credsRef.current = null;
 		if (window.location.hash) {
 			window.location.hash = "";
 		}
 		switchSession("");
+		setClient(null);
 		history.replaceState(null, "", window.location.pathname + window.location.search);
-	}, [switchSession]);
+	}, [disconnectCurrentClient, switchSession]);
 
 	const rejoin = useCallback((): void => {
 		const creds = credsRef.current;
 		if (creds) {
-			setClient(prev => {
-				prev?.close();
-				return null;
-			});
+			disconnectCurrentClient();
+			setClient(null);
 			setTimeout(() => {
 				connect(creds.link, creds.name);
 			}, 50);
 		}
-	}, [connect]);
+	}, [disconnectCurrentClient, connect]);
 
 	// Visual Viewport: adjust app height to fit screen space when mobile keyboard opens.
 	useEffect(() => {
