@@ -140,7 +140,6 @@ export function HeaderBar({
 						))}
 					</span>
 				)}
-				<span className={`sh-dot sh-dot-${phase}`} title={phase} />
 				<ThemeToggle />
 				{onOpenAnalytics && (
 					<button

@@ -142,8 +142,31 @@
 	user-select: none;
 }
 
+.tr-row--user {
+	grid-template-columns: minmax(0, 1fr) 72px;
+}
+
 .tr-row--user .tr-gutter {
+	order: 2;
+	text-align: right;
+	display: flex;
+	justify-content: flex-end;
+	align-items: flex-start;
 	color: var(--accent);
+}
+
+.tr-row--user .tr-body {
+	order: 1;
+	align-items: flex-end;
+}
+
+.tr-row--user .tr-body > .tr-md {
+	align-self: flex-end;
+	background: var(--bg-inset, rgba(255, 255, 255, 0.04));
+	border: 1px solid var(--border);
+	padding: 8px 12px;
+	border-radius: 12px 12px 2px 12px;
+	max-width: 85%;
 }
 
 .tr-body {

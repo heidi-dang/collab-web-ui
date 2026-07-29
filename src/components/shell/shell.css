@@ -160,6 +160,19 @@
 	border-color: var(--border-strong);
 }
 
+@keyframes sh-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.sh-spin {
+	animation: sh-spin 1s linear infinite;
+}
+
 .sh-btn-icon {
 	position: relative;
 	padding: 4px 6px;

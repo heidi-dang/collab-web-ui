@@ -8,6 +8,7 @@ import { Check, Hash, Layers, Plus, Server, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useSessionManager } from "../../hooks/useSessionManager";
+import { PortalModal } from "../common/PortalModal";
 import { fmtCost, fmtDuration, fmtTokens, relTime } from "../../lib/format";
 import "./agents.css";
 
@@ -137,9 +138,13 @@ export function AgentsPanel(props: {
 					</button>
 				</div>
 
-				{/* Add Server Expandable Form */}
-				{isAddOpen && (
-					<form className="ag-add-form" onSubmit={handleAddServer}>
+				{/* Add Server Portal Modal */}
+				<PortalModal
+					isOpen={isAddOpen}
+					onClose={() => setIsAddOpen(false)}
+					title="Add Workspace / Server"
+				>
+					<form className="ag-add-form space-y-4" onSubmit={handleAddServer}>
 						<div className="ag-add-field">
 							<label className="ag-add-label">Server / Workspace Name</label>
 							<input
@@ -161,7 +166,7 @@ export function AgentsPanel(props: {
 								className="ag-add-input"
 							/>
 						</div>
-						<div className="ag-add-actions">
+						<div className="ag-add-actions flex items-center justify-end gap-2 pt-2">
 							<button
 								type="button"
 								className="ag-btn-secondary"
@@ -174,7 +179,7 @@ export function AgentsPanel(props: {
 							</button>
 						</div>
 					</form>
-				)}
+				</PortalModal>
 
 				<div className="ag-workspace-list">
 					{sessions.map((session) => {

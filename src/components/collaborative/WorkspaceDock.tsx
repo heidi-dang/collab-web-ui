@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Server, Check, X, Layers, Hash } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Plus, Check, Layers, Hash } from 'lucide-react';
 import { useSessionManager, WorkspaceSession } from '../../hooks/useSessionManager';
+import { PortalModal } from '../common/PortalModal';
 
 export const WorkspaceDock: React.FC = () => {
-  const { activeHash, sessions, switchSession, addSession, removeSession } = useSessionManager();
+  const { activeHash, sessions, switchSession, addSession } = useSessionManager();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
   const [newSessionHash, setNewSessionHash] = useState('');
@@ -70,73 +71,53 @@ export const WorkspaceDock: React.FC = () => {
         </button>
       </div>
 
-      {/* Add Session Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Server size={18} className="text-indigo-400" />
-                  <h3 className="text-sm font-semibold text-zinc-100">Add Workspace Session</h3>
-                </div>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-zinc-400 hover:text-zinc-200"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <form onSubmit={handleCreate} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Workspace Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Design Sprint #2"
-                    value={newSessionName}
-                    onChange={(e) => setNewSessionName(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Custom Hash / Room ID (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. #vps-us-east-1"
-                    value={newSessionHash}
-                    onChange={(e) => setNewSessionHash(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-400 hover:bg-white/5"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex items-center gap-1 px-4 py-1.5 rounded-xl text-xs font-medium bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
-                  >
-                    <Check size={14} /> Create Workspace
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+      {/* Add Session Portal Modal */}
+      <PortalModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Add Workspace Session"
+      >
+        <form onSubmit={handleCreate} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-zinc-400 mb-1">Workspace Name</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Design Sprint #2"
+              value={newSessionName}
+              onChange={(e) => setNewSessionName(e.target.value)}
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500/50"
+            />
           </div>
-        )}
-      </AnimatePresence>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-400 mb-1">Custom Hash / Room ID (Optional)</label>
+            <input
+              type="text"
+              placeholder="e.g. #vps-us-east-1"
+              value={newSessionHash}
+              onChange={(e) => setNewSessionHash(e.target.value)}
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-400 hover:bg-white/5"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex items-center gap-1 px-4 py-1.5 rounded-xl text-xs font-medium bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+            >
+              <Check size={14} /> Create Workspace
+            </button>
+          </div>
+        </form>
+      </PortalModal>
     </>
   );
 };

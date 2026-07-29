@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { parseCollabLink, formatCollabLink, DEFAULT_RELAY_URL } from '../lib/link';
+import { getIDBSessions, saveIDBSessions } from '../lib/idbSessionStore';
 
 export interface WorkspaceSession {
   id: string;
@@ -48,18 +49,34 @@ export const useSessionManager = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Save sessions to local storage
+  // Hydrate from IndexedDB on mount
+  useEffect(() => {
+    let active = true;
+    getIDBSessions().then((idbSessions) => {
+      if (active && idbSessions && idbSessions.length > 0) {
+        setSessions(idbSessions);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Save sessions to local storage and IndexedDB
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
     } catch (e) {
-      console.warn('Failed to persist workspace sessions', e);
+      console.warn('Failed to persist workspace sessions to localStorage', e);
     }
+    saveIDBSessions(sessions);
   }, [sessions]);
 
   const switchSession = useCallback((hash: string) => {
     const formattedHash = hash.startsWith('#') ? hash : `#${hash}`;
-    window.location.hash = formattedHash;
+    if (window.location.hash !== formattedHash) {
+      window.location.hash = formattedHash;
+    }
     setActiveHash(formattedHash);
   }, []);
 
@@ -83,10 +100,21 @@ export const useSessionManager = () => {
     }
 
     setSessions((prev) => {
-      if (prev.some((s) => s.hash === hash)) return prev;
+      const sessionName = name.trim() || 'Workspace Session';
+      const existingIdx = prev.findIndex((s) => s.hash === hash);
+      if (existingIdx !== -1) {
+        const existing = prev[existingIdx];
+        // Update the session name if provided name is different or replaces a generic fallback
+        if (sessionName && (existing.name !== sessionName)) {
+          const updated = [...prev];
+          updated[existingIdx] = { ...existing, name: sessionName };
+          return updated;
+        }
+        return prev;
+      }
       const newSession: WorkspaceSession = {
         id: crypto.randomUUID(),
-        name,
+        name: sessionName,
         hash,
         createdAt: Date.now(),
       };

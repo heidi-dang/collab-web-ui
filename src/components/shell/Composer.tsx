@@ -1,4 +1,4 @@
-import { Activity, SendHorizontal, Square, Wifi } from "lucide-react";
+import { Activity, Loader2, SendHorizontal, Square, Wifi } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GuestClient, GuestSnapshot } from "../../lib/client";
@@ -202,10 +202,7 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 					/>
 				)}
 				<div className="sh-composer-actions sh-ask-actions">
-					<button type="button" className="sh-btn" onClick={() => client.sendUiResponse(uiRequest.reqId)}>
-						Cancel
-					</button>
-					{busy && (
+					{busy ? (
 						<button
 							type="button"
 							className="sh-btn sh-btn-stop"
@@ -213,7 +210,11 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 							disabled={!live}
 							title="stop the current turn"
 						>
-							<Square size={11} /> <span className="sh-btn-label">Stop</span>
+							<Loader2 size={12} className="sh-spin" /> <span className="sh-btn-label">Stop</span>
+						</button>
+					) : (
+						<button type="button" className="sh-btn" onClick={() => client.sendUiResponse(uiRequest.reqId)}>
+							Cancel
 						</button>
 					)}
 				</div>
@@ -249,7 +250,7 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 							<span className="sh-queued-label">queued </span>×{queued}
 						</span>
 					)}
-					{busy && !readOnly && (
+					{busy && !readOnly ? (
 						<button
 							type="button"
 							className="sh-btn sh-btn-stop"
@@ -257,18 +258,19 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 							disabled={!live}
 							title="stop the current turn"
 						>
-							<Square size={11} /> <span className="sh-btn-label">Stop</span>
+							<Loader2 size={12} className="sh-spin" /> <span className="sh-btn-label">Stop</span>
+						</button>
+					) : (
+						<button
+							type="button"
+							className="sh-btn sh-btn-primary"
+							onClick={send}
+							disabled={!canSend}
+							title="send (Enter)"
+						>
+							<SendHorizontal size={12} /> <span className="sh-btn-label">Send</span>
 						</button>
 					)}
-					<button
-						type="button"
-						className="sh-btn sh-btn-primary"
-						onClick={send}
-						disabled={!canSend}
-						title="send (Enter)"
-					>
-						<SendHorizontal size={12} /> <span className="sh-btn-label">Send</span>
-					</button>
 				</div>
 			</div>
 			<div className="sh-system-health">

@@ -1,6 +1,45 @@
 import { Marked } from "marked";
 import type { ReactNode } from "react";
 import { memo, useMemo } from "react";
+import { EditableReportBox } from "./EditableReportBox";
+
+import { AgentTaskTracker, AgentTask } from "./AgentTaskTracker";
+
+interface TextSegment {
+	type: "markdown" | "report" | "tasks";
+	content: string;
+}
+
+function parseMarkdownSegments(text: string): TextSegment[] {
+	const segments: TextSegment[] = [];
+	const regex = /```(report|editable|tasks|plan)(?:[^\n]*)\n([\s\S]*?)(?:```|$)/g;
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = regex.exec(text)) !== null) {
+		if (match.index > lastIndex) {
+			segments.push({
+				type: "markdown",
+				content: text.slice(lastIndex, match.index),
+			});
+		}
+		const lang = match[1];
+		segments.push({
+			type: lang === "tasks" || lang === "plan" ? "tasks" : "report",
+			content: match[2],
+		});
+		lastIndex = regex.lastIndex;
+	}
+
+  if (lastIndex < text.length) {
+    segments.push({
+      type: "markdown",
+      content: text.slice(lastIndex),
+    });
+  }
+
+  return segments;
+}
 
 function escapeHtml(s: string): string {
 	return s
@@ -75,12 +114,30 @@ const md = new Marked({
 });
 
 export const Markdown = memo(function Markdown({ text }: { text: string }): ReactNode {
-	const html = useMemo(() => {
-		try {
-			return md.parse(text, { async: false });
-		} catch {
-			return escapeHtml(text);
-		}
-	}, [text]);
-	return <div className="tr-md" dangerouslySetInnerHTML={{ __html: html }} />;
+	const segments = useMemo(() => parseMarkdownSegments(text), [text]);
+
+	return (
+		<div className="tr-md flex flex-col gap-2">
+			{segments.map((seg, idx) => {
+				if (seg.type === "report") {
+					return <EditableReportBox key={idx} initialContent={seg.content} title="Editable Report" />;
+				}
+				if (seg.type === "tasks") {
+					try {
+						const taskData = JSON.parse(seg.content) as { title?: string; tasks: AgentTask[] };
+						return <AgentTaskTracker key={idx} planTitle={taskData.title || "Agent Execution Plan"} tasks={taskData.tasks || []} />;
+					} catch {
+						// Fallback if parsing fails
+					}
+				}
+				let html = "";
+				try {
+					html = md.parse(seg.content, { async: false }) as string;
+				} catch {
+					html = escapeHtml(seg.content);
+				}
+				return <div key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
+			})}
+		</div>
+	);
 });

@@ -11,6 +11,7 @@ import { HeaderBar } from "./components/shell/HeaderBar";
 import { Toasts } from "./components/shell/Toasts";
 import { Transcript } from "./components/transcript/Transcript";
 import { CommandPalette, AIChatPanel, OffscreenCanvasBoard, FloatingToolbar, ToolType } from "./components/collaborative";
+import { parseCollabLink } from "./lib/link";
 import { useSessionManager } from "./hooks/useSessionManager";
 import { useCanvasSocket } from "./hooks/useCanvasSocket";
 import { GuestClient } from "./lib/client";
@@ -49,16 +50,39 @@ export function App(): ReactNode {
 	const { activeHash, sessions, addSession } = useSessionManager();
 	const { isOnline, connectionError, emitStroke } = useCanvasSocket(activeHash);
 
+	const activeSessionName = useMemo(() => {
+		const currentSession = sessions.find(
+			s => s.hash === activeHash || s.hash === `#${activeHash}` || s.hash.replace(/^#/, "") === activeHash.replace(/^#/, "")
+		);
+		if (currentSession) {
+			return currentSession.name;
+		}
+		if (activeHash) {
+			return "Shared Session";
+		}
+		return "Main Canvas";
+	}, [activeHash, sessions]);
+
 	// Auto-prompt/save session if a user lands on a raw hash URL not in local storage
 	useEffect(() => {
 		const hash = window.location.hash;
 		if (hash && hash.length > 3) {
 			const exists = sessions.some(s => s.hash === hash);
 			if (!exists) {
-				addSession('Shared Session', hash);
+				const trimmed = hash.replace(/^#/, "");
+				const parseRes = parseCollabLink(trimmed);
+				let derivedName = "Shared Session";
+				if (!("error" in parseRes)) {
+					try {
+						derivedName = new URL(parseRes.wsUrl).hostname;
+					} catch {
+						derivedName = parseRes.roomId || "Shared Session";
+					}
+				}
+				addSession(derivedName, hash);
 			}
 		}
-	}, [activeHash, sessions, addSession]);
+	}, [sessions, addSession]);
 
 	const connect = useCallback((link: string, name: string): void => {
 		let next: GuestClient;
@@ -142,6 +166,7 @@ export function App(): ReactNode {
 			key={activeHash}
 			client={client}
 			activeHash={activeHash}
+			activeSessionName={activeSessionName}
 			isOnline={isOnline}
 			connectionError={connectionError}
 			emitStroke={emitStroke}
@@ -154,6 +179,7 @@ export function App(): ReactNode {
 interface SessionProps {
 	client: GuestClient;
 	activeHash: string;
+	activeSessionName: string;
 	isOnline: boolean;
 	connectionError: string | null;
 	emitStroke: (stroke: any) => void;
@@ -161,7 +187,7 @@ interface SessionProps {
 	onRejoin(): void;
 }
 
-function Session({ client, activeHash, isOnline, connectionError, emitStroke, onLeave, onRejoin }: SessionProps): ReactNode {
+function Session({ client, activeHash, activeSessionName, isOnline, connectionError, emitStroke, onLeave, onRejoin }: SessionProps): ReactNode {
 	const snap = useGuestSnapshot(client);
 	const [railOpen, setRailOpen] = useState(false);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -193,7 +219,7 @@ function Session({ client, activeHash, isOnline, connectionError, emitStroke, on
 		}
 	}, [subCount]);
 
-	const title = snap.header?.title ?? snap.state?.sessionName ?? "session";
+	const title = snap.header?.title ?? snap.state?.sessionName ?? activeSessionName ?? "session";
 	useEffect(() => {
 		document.title = `${title} · omp collab`;
 	}, [title]);
