@@ -1,5 +1,6 @@
 import { Marked } from "marked";
 import { createHighlighter, type Highlighter } from "shiki";
+import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
 
 let highlighter: Highlighter | null = null;
 let initPromise: Promise<void> | null = null;
@@ -14,6 +15,7 @@ const initShiki = async () => {
 		highlighter = await createHighlighter({
 			themes: ["dark-plus"],
 			langs: ["javascript", "typescript", "bash", "python", "json", "html", "css"],
+			engine: createJavaScriptRegexEngine(),
 		});
 		if (highlighter) {
 			marked.use({
