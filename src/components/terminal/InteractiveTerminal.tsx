@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
+import { TerminalStreamManager } from '../../lib/TerminalStreamManager';
 import 'xterm/css/xterm.css';
 
 interface InteractiveTerminalProps {
@@ -13,6 +14,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({ socket
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const managerRef = useRef<TerminalStreamManager | null>(null);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -32,6 +34,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({ socket
     });
 
     xtermRef.current = term;
+    managerRef.current = new TerminalStreamManager(term);
 
     // 2. Load Addons
     const fitAddon = new FitAddon();
@@ -59,7 +62,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({ socket
       });
 
       const handleSocketData = (data: string) => {
-        term.write(data);
+        managerRef.current?.push(data);
       };
 
       if (typeof socket.on === 'function') {
@@ -87,12 +90,16 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({ socket
         if (typeof socket.off === 'function') {
           socket.off('pty-output', handleSocketData);
         }
+        managerRef.current?.dispose();
+        managerRef.current = null;
         term.dispose();
         xtermRef.current = null;
       };
     }
 
     return () => {
+      managerRef.current?.dispose();
+      managerRef.current = null;
       term.dispose();
       xtermRef.current = null;
     };
@@ -104,3 +111,4 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({ socket
     </div>
   );
 };
+
