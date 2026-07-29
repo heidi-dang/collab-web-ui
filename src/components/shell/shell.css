@@ -2,18 +2,13 @@
 
 /* ---- app frame ---- */
 .sh-app {
-	display: grid;
-	grid-template-rows: auto auto 1fr auto;
-	/* Single column pinned to the container width: an `auto` track sizes to its
-	 * items' min-content, so a long session title (or the fixed header controls)
-	 * would force every row — header, transcript, composer — wider than a narrow
-	 * viewport and clip the right edge. `minmax(0, 1fr)` caps the track so rows
-	 * shrink and ellipsize instead of overflowing. */
-	grid-template-columns: minmax(0, 1fr);
+	display: flex;
+	flex-direction: column;
 	height: 100dvh;
 	max-height: 100dvh;
 	width: 100%;
 	overflow: hidden;
+	position: relative;
 }
 
 /* Floating Budget Alert Banner */
@@ -68,6 +63,7 @@
 
 .sh-main {
 	display: flex;
+	flex: 1 1 0%;
 	min-height: 0;
 	overflow: hidden;
 }
