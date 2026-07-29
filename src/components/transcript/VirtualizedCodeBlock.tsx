@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useDeferredValue } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { createHighlighter, type Highlighter, type ThemedToken } from 'shiki';
 
@@ -25,6 +25,7 @@ export const VirtualizedCodeBlock: React.FC<VirtualizedCodeBlockProps> = ({ code
   const [copied, setCopied] = useState(false);
   const parentRef = useRef<HTMLDivElement>(null);
 
+  const deferredCode = useDeferredValue(code);
   const lines = useMemo(() => code.split('\n'), [code]);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export const VirtualizedCodeBlock: React.FC<VirtualizedCodeBlockProps> = ({ code
         try {
           const loadedLangs = highlighter.getLoadedLanguages();
           const validLang = (loadedLangs.includes(lang) ? lang : 'text') as any;
-          const result = highlighter.codeToTokens(code, {
+          const result = highlighter.codeToTokens(deferredCode, {
             lang: validLang,
             theme: 'vsc-dark-plus',
           });
@@ -53,7 +54,7 @@ export const VirtualizedCodeBlock: React.FC<VirtualizedCodeBlockProps> = ({ code
     return () => {
       isMounted = false;
     };
-  }, [code, language]);
+  }, [deferredCode, language]);
 
   const rowCount = lines.length;
   const isLarge = rowCount > 30;
