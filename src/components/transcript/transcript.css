@@ -12,20 +12,71 @@
 	color: var(--fg);
 }
 
-/* Floating scroll down button */
-.tr-scroll-down {
+/* Floating scroll & lock controls bar */
+.tr-floating-controls {
 	position: sticky;
 	bottom: 12px;
-	left: 50%;
-	transform: translateX(-50%);
 	z-index: 40;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	width: max-content;
+	margin: 16px auto 0;
+	pointer-events: auto;
+}
+
+.tr-autoscroll-btn {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	margin: 12px auto 0;
-	padding: 6px 14px;
+	padding: 5px 12px;
 	font-family: var(--font-ui);
-	font-size: 12px;
+	font-size: 11px;
+	font-weight: 500;
+	border-radius: 9999px;
+	backdrop-filter: blur(12px) saturate(150%);
+	-webkit-backdrop-filter: blur(12px) saturate(150%);
+	border: 1px solid var(--border-strong);
+	cursor: pointer;
+	transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.tr-autoscroll-locked {
+	background: rgba(127, 219, 202, 0.12);
+	border-color: rgba(127, 219, 202, 0.35);
+	color: var(--accent);
+}
+
+.tr-autoscroll-locked:hover {
+	background: rgba(127, 219, 202, 0.22);
+	border-color: var(--accent);
+	box-shadow: 0 6px 20px rgba(127, 219, 202, 0.3);
+}
+
+.tr-autoscroll-unlocked {
+	background: rgba(236, 196, 141, 0.15);
+	border-color: rgba(236, 196, 141, 0.4);
+	color: #ecc48d;
+}
+
+.tr-autoscroll-unlocked:hover {
+	background: rgba(236, 196, 141, 0.25);
+	box-shadow: 0 6px 20px rgba(236, 196, 141, 0.35);
+}
+
+.tr-lock-icon {
+	flex-shrink: 0;
+}
+
+.tr-scroll-down {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 12px;
+	font-family: var(--font-ui);
+	font-size: 11px;
 	font-weight: 500;
 	color: var(--fg);
 	background: var(--bg-overlay);
@@ -54,10 +105,10 @@
 @keyframes tr-bounce {
 	0%,
 	100% {
-		transform: translateX(-50%) translateY(0);
+		transform: translateY(0);
 	}
 	50% {
-		transform: translateX(-50%) translateY(-4px);
+		transform: translateY(-4px);
 	}
 }
 

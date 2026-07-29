@@ -16,6 +16,19 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import {
+	Area,
+	AreaChart,
+	Bar,
+	BarChart,
+	CartesianGrid,
+	Cell,
+	Legend,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from "recharts";
 import type { GuestSnapshot } from "../../lib/client";
 import { fmtCost, fmtPercent, fmtTokens, relTime } from "../../lib/format";
 import "./analytics.css";
@@ -220,6 +233,19 @@ export function AnalyticsDrawer({ snapshot, onClose }: AnalyticsDrawerProps): Re
 	const contextTokens = contextUsage?.tokens ?? analytics.totalTokens;
 	const contextPct = (contextTokens / contextWindow) * 100;
 
+	// Recharts dataset per turn
+	const chartTurnsData = useMemo(() => {
+		return analytics.turns.map((turn, idx) => ({
+			name: `Turn ${idx + 1}`,
+			input: turn.input,
+			output: turn.output,
+			cacheRead: turn.cacheRead,
+			cacheWrite: turn.cacheWrite,
+			total: turn.totalTokens,
+			cost: turn.cost,
+		}));
+	}, [analytics.turns]);
+
 	// Budget Progress
 	const tokenPct = budget.enabled && budget.tokenLimit > 0 ? (analytics.totalTokens / budget.tokenLimit) * 100 : 0;
 	const costPct = budget.enabled && budget.costLimit > 0 ? (analytics.totalCost / budget.costLimit) * 100 : 0;
@@ -261,46 +287,53 @@ export function AnalyticsDrawer({ snapshot, onClose }: AnalyticsDrawerProps): Re
 					</div>
 				)}
 
-				{/* Key Metric Cards Grid */}
+				{/* Key Metric Cards Grid - 4 Column Compact Ribbon */}
 				<div className="an-metrics-grid">
 					<div className="an-card">
 						<div className="an-card-header">
 							<span className="an-card-label">Total Tokens</span>
-							<Zap size={14} className="an-icon-zap" />
+							<Zap size={12} className="an-icon-zap" />
 						</div>
 						<div className="an-card-val">{fmtTokens(analytics.totalTokens)}</div>
-						<div className="an-card-sub">{analytics.totalTokens.toLocaleString()} tokens</div>
+						<div className="an-card-sub" title={`${analytics.totalTokens.toLocaleString()} tokens`}>
+							{analytics.totalTokens.toLocaleString()}
+						</div>
 					</div>
 
 					<div className="an-card">
 						<div className="an-card-header">
-							<span className="an-card-label">Estimated Cost</span>
-							<Coins size={14} className="an-icon-cost" />
+							<span className="an-card-label">Est. Cost</span>
+							<Coins size={12} className="an-icon-cost" />
 						</div>
 						<div className="an-card-val">{fmtCost(analytics.totalCost)}</div>
-						<div className="an-card-sub">
-							Avg {fmtCost((analytics.totalCost / (analytics.totalTokens || 1)) * 1000)} / 1k tok
+						<div
+							className="an-card-sub"
+							title={`Avg ${fmtCost((analytics.totalCost / (analytics.totalTokens || 1)) * 1000)} / 1k tokens`}
+						>
+							{fmtCost((analytics.totalCost / (analytics.totalTokens || 1)) * 1000)}/1k
 						</div>
 					</div>
 
 					<div className="an-card">
 						<div className="an-card-header">
-							<span className="an-card-label">Context Window</span>
-							<Cpu size={14} className="an-icon-cpu" />
+							<span className="an-card-label">Context</span>
+							<Cpu size={12} className="an-icon-cpu" />
 						</div>
 						<div className="an-card-val">{fmtPercent(contextPct)}</div>
-						<div className="an-card-sub">
+						<div className="an-card-sub" title={`${fmtTokens(contextTokens)} / ${fmtTokens(contextWindow)}`}>
 							{fmtTokens(contextTokens)} / {fmtTokens(contextWindow)}
 						</div>
 					</div>
 
 					<div className="an-card">
 						<div className="an-card-header">
-							<span className="an-card-label">Cache Hit Ratio</span>
-							<Database size={14} className="an-icon-db" />
+							<span className="an-card-label">Cache Hit</span>
+							<Database size={12} className="an-icon-db" />
 						</div>
 						<div className="an-card-val">{analytics.cacheHitRatio.toFixed(1)}%</div>
-						<div className="an-card-sub">{fmtTokens(analytics.totalCacheRead)} read tokens</div>
+						<div className="an-card-sub" title={`${fmtTokens(analytics.totalCacheRead)} read tokens`}>
+							{fmtTokens(analytics.totalCacheRead)} read
+						</div>
 					</div>
 				</div>
 
@@ -456,6 +489,101 @@ export function AnalyticsDrawer({ snapshot, onClose }: AnalyticsDrawerProps): Re
 									</div>
 								</div>
 							</div>
+
+							{/* Recharts Token Consumption Chart */}
+							{chartTurnsData.length > 0 && (
+								<div className="an-chart-container">
+									<h5 className="an-chart-title">Real-time Token Trend across Turns</h5>
+									<div className="an-chart-wrapper">
+										<ResponsiveContainer width="100%" height={180}>
+											<AreaChart data={chartTurnsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+												<defs>
+													<linearGradient id="gradInput" x1="0" y1="0" x2="0" y2="1">
+														<stop offset="5%" stopColor="#82aaff" stopOpacity={0.6} />
+														<stop offset="95%" stopColor="#82aaff" stopOpacity={0} />
+													</linearGradient>
+													<linearGradient id="gradOutput" x1="0" y1="0" x2="0" y2="1">
+														<stop offset="5%" stopColor="#c792ea" stopOpacity={0.6} />
+														<stop offset="95%" stopColor="#c792ea" stopOpacity={0} />
+													</linearGradient>
+													<linearGradient id="gradCacheRead" x1="0" y1="0" x2="0" y2="1">
+														<stop offset="5%" stopColor="#7fdbca" stopOpacity={0.6} />
+														<stop offset="95%" stopColor="#7fdbca" stopOpacity={0} />
+													</linearGradient>
+												</defs>
+												<CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.06)" />
+												<XAxis dataKey="name" stroke="var(--fg-faint)" fontSize={10} tickLine={false} />
+												<YAxis stroke="var(--fg-faint)" fontSize={10} tickLine={false} />
+												<Tooltip
+													contentStyle={{
+														backgroundColor: "#011627",
+														borderColor: "rgba(127, 219, 202, 0.3)",
+														borderRadius: "6px",
+														color: "#d6deeb",
+														fontSize: "11px",
+														fontFamily: "var(--font-mono)",
+													}}
+												/>
+												<Area
+													type="monotone"
+													dataKey="input"
+													name="Input Tokens"
+													stroke="#82aaff"
+													fillOpacity={1}
+													fill="url(#gradInput)"
+												/>
+												<Area
+													type="monotone"
+													dataKey="output"
+													name="Output Tokens"
+													stroke="#c792ea"
+													fillOpacity={1}
+													fill="url(#gradOutput)"
+												/>
+												<Area
+													type="monotone"
+													dataKey="cacheRead"
+													name="Cache Read"
+													stroke="#7fdbca"
+													fillOpacity={1}
+													fill="url(#gradCacheRead)"
+												/>
+											</AreaChart>
+										</ResponsiveContainer>
+									</div>
+								</div>
+							)}
+
+							{/* Cost Breakdown BarChart */}
+							{chartTurnsData.length > 0 && (
+								<div className="an-chart-container">
+									<h5 className="an-chart-title">Turn Cost Breakdown ($USD)</h5>
+									<div className="an-chart-wrapper">
+										<ResponsiveContainer width="100%" height={140}>
+											<BarChart data={chartTurnsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+												<CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.06)" />
+												<XAxis dataKey="name" stroke="var(--fg-faint)" fontSize={10} tickLine={false} />
+												<YAxis stroke="var(--fg-faint)" fontSize={10} tickLine={false} />
+												<Tooltip
+													formatter={(value: unknown) => [
+														`$${typeof value === "number" ? value.toFixed(4) : "0.0000"}`,
+														"Cost",
+													]}
+													contentStyle={{
+														backgroundColor: "#011627",
+														borderColor: "rgba(236, 196, 141, 0.3)",
+														borderRadius: "6px",
+														color: "#ecc48d",
+														fontSize: "11px",
+														fontFamily: "var(--font-mono)",
+													}}
+												/>
+												<Bar dataKey="cost" name="Cost ($USD)" fill="#ecc48d" radius={[4, 4, 0, 0]} />
+											</BarChart>
+										</ResponsiveContainer>
+									</div>
+								</div>
+							)}
 
 							{/* Model Information */}
 							<div className="an-model-info">

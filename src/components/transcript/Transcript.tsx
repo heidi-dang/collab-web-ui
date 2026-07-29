@@ -1,5 +1,5 @@
 import type { AssistantMessage, ImageContent, SessionEntry, TextContent, ToolResultMessage } from "@oh-my-pi/pi-wire";
-import { ArrowDown, ChevronRight } from "lucide-react";
+import { ArrowDown, ChevronRight, Lock, Unlock } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ActiveTool } from "../../lib/client";
@@ -253,26 +253,49 @@ export function Transcript(props: TranscriptProps): ReactNode {
 
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const lockRef = useRef(true);
+	const [autoScrollLocked, setAutoScrollLocked] = useState(true);
 	const [showScrollDown, setShowScrollDown] = useState(false);
 	const [hasNewActivity, setHasNewActivity] = useState(false);
+
+	const toggleAutoScrollLock = useCallback(() => {
+		setAutoScrollLocked(prev => {
+			const next = !prev;
+			lockRef.current = next;
+			if (next && rootRef.current) {
+				rootRef.current.scrollTo({ top: rootRef.current.scrollHeight, behavior: "smooth" });
+				setShowScrollDown(false);
+				setHasNewActivity(false);
+			}
+			return next;
+		});
+	}, []);
 
 	const handleScroll = useCallback(() => {
 		const el = rootRef.current;
 		if (el !== null) {
 			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 40;
-			lockRef.current = atBottom;
+			// Only auto-unlock if user manually scrolled up while locked
+			if (!atBottom && lockRef.current && autoScrollLocked) {
+				lockRef.current = false;
+				setAutoScrollLocked(false);
+			} else if (atBottom && !lockRef.current && !autoScrollLocked) {
+				// Re-lock if user manually scrolled back down to very bottom
+				lockRef.current = true;
+				setAutoScrollLocked(true);
+				setHasNewActivity(false);
+			}
 			setShowScrollDown(!atBottom);
 			if (atBottom) {
 				setHasNewActivity(false);
 			}
 		}
-	}, []);
+	}, [autoScrollLocked]);
 
 	// Follow the tail while bottom-locked; releasing/re-arming happens in handleScroll.
 	useEffect(() => {
 		const el = rootRef.current;
 		if (el !== null) {
-			if (lockRef.current) {
+			if (lockRef.current && autoScrollLocked) {
 				el.scrollTop = el.scrollHeight;
 				setShowScrollDown(false);
 				setHasNewActivity(false);
@@ -280,13 +303,14 @@ export function Transcript(props: TranscriptProps): ReactNode {
 				setHasNewActivity(true);
 			}
 		}
-	}, [entries, stream, activeTools, working]);
+	}, [entries, stream, activeTools, working, autoScrollLocked]);
 
 	const scrollToBottom = useCallback(() => {
 		const el = rootRef.current;
 		if (el !== null) {
 			el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
 			lockRef.current = true;
+			setAutoScrollLocked(true);
 			setShowScrollDown(false);
 			setHasNewActivity(false);
 		}
@@ -352,17 +376,28 @@ export function Transcript(props: TranscriptProps): ReactNode {
 					<div className="tr-shimmer">thinking…</div>
 				</Row>
 			)}
-			{showScrollDown && (
+			<div className="tr-floating-controls">
 				<button
 					type="button"
-					className={`tr-scroll-down${hasNewActivity ? " tr-scroll-down--new" : ""}`}
-					onClick={scrollToBottom}
-					title="Scroll to bottom"
+					className={`tr-autoscroll-btn${autoScrollLocked ? " tr-autoscroll-locked" : " tr-autoscroll-unlocked"}`}
+					onClick={toggleAutoScrollLock}
+					title={autoScrollLocked ? "Auto-scroll is LOCKED to bottom (Click to unlock & pause)" : "Auto-scroll is PAUSED (Click to lock to bottom)"}
 				>
-					<ArrowDown size={13} />
-					<span>{hasNewActivity ? "New messages ↓" : "Scroll down"}</span>
+					{autoScrollLocked ? <Lock size={12} className="tr-lock-icon" /> : <Unlock size={12} className="tr-lock-icon" />}
+					<span>{autoScrollLocked ? "Auto-scroll: On" : "Auto-scroll: Paused"}</span>
 				</button>
-			)}
+				{showScrollDown && (
+					<button
+						type="button"
+						className={`tr-scroll-down${hasNewActivity ? " tr-scroll-down--new" : ""}`}
+						onClick={scrollToBottom}
+						title="Scroll to bottom & lock auto-scroll"
+					>
+						<ArrowDown size={13} />
+						<span>{hasNewActivity ? "New messages ↓" : "Bottom ↓"}</span>
+					</button>
+				)}
+			</div>
 		</div>
 	);
 }

@@ -1,6 +1,6 @@
 import { SendHorizontal, Square } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GuestClient, GuestSnapshot } from "../../lib/client";
 
 export interface ComposerProps {
@@ -139,15 +139,36 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 		}
 	};
 
+	useEffect(() => {
+		if (!uiRequest || uiRequest.kind !== "select" || !canPrompt) return;
+		const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+			const keyNum = parseInt(e.key, 10);
+			if (!isNaN(keyNum) && keyNum >= 1 && keyNum <= uiRequest.options.length) {
+				const opt = uiRequest.options[keyNum - 1];
+				const label = typeof opt === "string" ? opt : opt.label;
+				client.sendUiResponse(uiRequest.reqId, label);
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [client, canPrompt, uiRequest]);
+
 	if (uiRequest && canPrompt) {
+		const isSelect = uiRequest.kind === "select";
+
 		return (
 			<div className="sh-composer sh-composer-ask">
-				<div className="sh-ask-title">{uiRequest.title}</div>
-				{uiRequest.kind === "select" ? (
+				<div className="sh-ask-header">
+					<span className="sh-ask-tag">{isSelect ? "Select Option" : "Text Prompt"}</span>
+					<div className="sh-ask-title">{uiRequest.title}</div>
+				</div>
+				{isSelect ? (
 					<div className="sh-ask-options">
 						{uiRequest.options.map((option, index) => {
 							const label = typeof option === "string" ? option : option.label;
 							const checked = uiRequest.checkedIndices?.includes(index) ?? false;
+							const shortcutNum = index < 9 ? index + 1 : undefined;
 							return (
 								<button
 									key={`${uiRequest.reqId}-${index}-${label}`}
@@ -164,6 +185,11 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 											<span className="sh-ask-option-description">{option.description}</span>
 										)}
 									</span>
+									{shortcutNum && (
+										<span className="sh-ask-shortcut-key" title={`Press ${shortcutNum} to select`}>
+											{shortcutNum}
+										</span>
+									)}
 								</button>
 							);
 						})}

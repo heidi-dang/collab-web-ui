@@ -1,8 +1,9 @@
+import { AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentDrawer } from "./components/agents/AgentDrawer";
 import { AgentsPanel } from "./components/agents/AgentsPanel";
-import { AnalyticsDrawer } from "./components/analytics/AnalyticsDrawer";
+import { AnalyticsDrawer, loadBudgetConfig } from "./components/analytics/AnalyticsDrawer";
 import { Banners } from "./components/shell/Banners";
 import { Composer } from "./components/shell/Composer";
 import { ConnectScreen } from "./components/shell/ConnectScreen";
@@ -156,6 +157,23 @@ function Session({ client, onLeave, onRejoin }: SessionProps): ReactNode {
 
 	const drawerAgent = selectedId != null ? snap.agents.find(a => a.id === selectedId) : undefined;
 
+	// Budget Limit Calculation
+	const budget = useMemo(() => loadBudgetConfig(), [analyticsOpen]);
+	const totalTokens = useMemo(() => {
+		let tok = 0;
+		if (snap.state?.contextUsage?.tokens) return snap.state.contextUsage.tokens;
+		for (const e of snap.entries) {
+			if (e.type === "message" && e.message.role === "assistant") {
+				const usage = e.message.usage;
+				if (usage) tok += usage.totalTokens ?? 0;
+			}
+		}
+		return tok;
+	}, [snap.entries, snap.state?.contextUsage]);
+
+	const tokenPct = budget.enabled && budget.tokenLimit > 0 ? (totalTokens / budget.tokenLimit) * 100 : 0;
+	const showBudgetBanner = budget.enabled && tokenPct >= 80;
+
 	return (
 		<div className="sh-app">
 			<HeaderBar
@@ -166,6 +184,21 @@ function Session({ client, onLeave, onRejoin }: SessionProps): ReactNode {
 				onLeave={onLeave}
 				onOpenAnalytics={() => setAnalyticsOpen(true)}
 			/>
+			{showBudgetBanner && (
+				<div
+					className={`sh-budget-banner ${tokenPct >= 100 ? "sh-budget-banner-danger" : "sh-budget-banner-warning"}`}
+				>
+					<AlertTriangle size={14} />
+					<span>
+						<strong>{tokenPct >= 100 ? "Budget Exceeded!" : "Budget Warning (80%+)"}</strong> —{" "}
+						{totalTokens.toLocaleString()} / {budget.tokenLimit.toLocaleString()} tokens used (
+						{tokenPct.toFixed(0)}%)
+					</span>
+					<button type="button" className="sh-budget-banner-btn" onClick={() => setAnalyticsOpen(true)}>
+						Adjust Budget
+					</button>
+				</div>
+			)}
 			<main className="sh-main">
 				<section className="sh-content" data-rail={railOpen ? "true" : "false"}>
 					<div className="sh-transcript">
