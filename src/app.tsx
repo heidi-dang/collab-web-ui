@@ -131,13 +131,17 @@ export function App(): ReactNode {
 		history.replaceState(null, "", window.location.pathname + window.location.search);
 	}, [disconnectCurrentClient, switchSession]);
 
+	const rejoinTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 	const rejoin = useCallback((): void => {
 		const creds = credsRef.current;
 		if (creds) {
 			disconnectCurrentClient();
 			setClient(null);
-			setTimeout(() => {
-				connect(creds.link, creds.name);
+			clearTimeout(rejoinTimeoutRef.current);
+			rejoinTimeoutRef.current = setTimeout(() => {
+				if (credsRef.current === creds) {
+					connect(creds.link, creds.name);
+				}
 			}, 50);
 		}
 	}, [disconnectCurrentClient, connect]);

@@ -149,18 +149,22 @@ export class GuestClient {
 		this.#pingTimer = setInterval(() => {
 			if (this.#socket.isOpen && (this.#phase === "live" || this.#phase === "waiting")) {
 				const start = performance.now();
-				void this.fetchTranscript("__health_ping__", 0).then(() => {
-					this.#latencyMs = Math.round(performance.now() - start);
-					this.#lastHeartbeatAt = Date.now();
-					this.#commit();
-				});
+				void this.fetchTranscript("__health_ping__", 0)
+					.then(() => {
+						this.#latencyMs = Math.round(performance.now() - start);
+						this.#lastHeartbeatAt = Date.now();
+						this.#commit();
+					})
+					.catch(() => {
+						// ping failed silently — next interval will retry
+					});
 			}
 		}, 3500);
 	}
 
 	connect(): void {
 		if (this.#phase === "ended") {
-			this.#phase = "connecting";
+			this.#transitionTo("connecting");
 			this.#endedReason = null;
 			this.#commit();
 		}
