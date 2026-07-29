@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { offlineSync, CanvasStroke } from '../lib/offlineSync';
 
-const WS_URL = (import.meta as unknown as { env: Record<string, string> }).env?.VITE_WS_URL;
+const WS_URL = import.meta.env.VITE_WS_URL;
 
 export const useCanvasSocket = (activeHash: string) => {
   const socketRef = useRef<Socket | null>(null);
