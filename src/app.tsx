@@ -248,6 +248,38 @@ function Session({ client, activeHash, activeSessionName, isOnline, connectionEr
 		document.title = `${title} · omp collab`;
 	}, [title]);
 
+	// Foreground/background detection: iOS freezes WebSockets when the page
+	// enters the background. On return, force a fresh hello → welcome →
+	// snapshot resync instead of trusting a stale socket.
+	useEffect(() => {
+		const onVisibilityChange = () => {
+			if (document.hidden) {
+				client.suspendHeartbeat();
+			} else {
+				client.resumeAndResyncIfStale();
+			}
+		};
+		const onPageShow = () => {
+			// Safari bfcache restoration: the page may show without a
+			// visibilitychange event. Treat any pageshow as potential
+			// background resume.
+			client.resumeAndResyncIfStale();
+		};
+		const onFocus = () => {
+			// Window focus after the page was backgrounded (e.g. alt-tab
+			// on desktop, or switching Safari tabs on iOS).
+			client.resumeAndResyncIfStale();
+		};
+		document.addEventListener("visibilitychange", onVisibilityChange);
+		window.addEventListener("pageshow", onPageShow);
+		window.addEventListener("focus", onFocus);
+		return () => {
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+			window.removeEventListener("pageshow", onPageShow);
+			window.removeEventListener("focus", onFocus);
+		};
+	}, [client]);
+
 	const drawerAgent = selectedId != null ? snap.agents.find(a => a.id === selectedId) : undefined;
 
 	// Budget Limit Calculation

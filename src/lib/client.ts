@@ -126,6 +126,8 @@ export class GuestClient {
 	#latencyMs: number | null = null;
 	#lastHeartbeatAt: number | null = Date.now();
 	#pingTimer: ReturnType<typeof setInterval> | null = null;
+	#pingPending = false;
+	#heartbeatSuspended = false;
 	#snapshot: GuestSnapshot;
 
 	/** @throws Error when the link does not parse. */
@@ -148,19 +150,49 @@ export class GuestClient {
 	#startPingLoop(): void {
 		if (this.#pingTimer !== null) return;
 		this.#pingTimer = setInterval(() => {
+			if (this.#heartbeatSuspended) return;
+			if (this.#pingPending) return;
 			if (this.#socket.isOpen && (this.#phase === "live" || this.#phase === "waiting")) {
 				const start = performance.now();
+				this.#pingPending = true;
 				void this.fetchTranscript("__health_ping__", 0)
-					.then(() => {
+					.then(result => {
+						this.#pingPending = false;
+						if (result === null) {
+							// Timed out — not a successful latency measurement
+							this.#latencyMs = null;
+							this.#lastHeartbeatAt = null;
+							this.#commit();
+							return;
+						}
 						this.#latencyMs = Math.round(performance.now() - start);
 						this.#lastHeartbeatAt = Date.now();
 						this.#commit();
 					})
 					.catch(() => {
-						// ping failed silently — next interval will retry
+						this.#pingPending = false;
 					});
 			}
 		}, 3500);
+	}
+
+	/** Suspend heartbeat while the page is hidden (iOS background freeze). */
+	suspendHeartbeat(): void {
+		this.#heartbeatSuspended = true;
+	}
+
+	/**
+	 * Resume heartbeat and force a fresh reconnect if the socket is likely
+	 * stale (page was backgrounded long enough for iOS to suspend the socket).
+	 */
+	resumeAndResyncIfStale(): void {
+		this.#heartbeatSuspended = false;
+		if (this.#phase === "live" || this.#phase === "waiting") {
+			this.#socket.close();
+			// onClose fires with willReconnect=true, transitioning to
+			// reconnecting. The socket auto-reconnects and the FSM flows
+			// reconnecting → waiting → live with a fresh snapshot.
+		}
 	}
 
 	connect(): void {
@@ -183,6 +215,8 @@ export class GuestClient {
 			clearInterval(this.#pingTimer);
 			this.#pingTimer = null;
 		}
+		this.#pingPending = false;
+		this.#heartbeatSuspended = false;
 		this.#clearWelcomeTimer();
 		this.#clearSnapshotProgressTimer();
 		this.#socket.close();
@@ -242,13 +276,21 @@ export class GuestClient {
 		this.#applyFrameSafe(frame);
 	}
 
+	/** Test seam: simulate the hello handshake (connecting → waiting). */
+	simulateHelloForTest(): void {
+		this.#lastHeartbeatAt = Date.now();
+		this.#everConnected = true;
+		this.#transitionTo("waiting");
+		this.#commit();
+	}
+
 	#transitionTo(nextPhase: ConnectionPhase, reason?: string): boolean {
 		const current = this.#phase;
 		if (current === nextPhase) return true;
 
 		// FSM transition matrix validation
 		const VALID_TRANSITIONS: Record<ConnectionPhase, ConnectionPhase[]> = {
-			connecting: ["waiting", "live", "ended"],
+			connecting: ["waiting", "ended"],
 			waiting: ["live", "reconnecting", "ended"],
 			live: ["reconnecting", "ended"],
 			reconnecting: ["waiting", "ended"],

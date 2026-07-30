@@ -62,6 +62,7 @@ function snapshotChunk(entries: SessionEntry[], final = true): HostFrame {
 
 function liveClient(entries: SessionEntry[] = []): GuestClient {
 	const client = new GuestClient(LINK, "tester");
+	client.simulateHelloForTest();
 	client.applyFrameForTest(welcomeFrame(entries.length));
 	if (entries.length > 0) client.applyFrameForTest(snapshotChunk(entries));
 	return client;
@@ -89,6 +90,7 @@ describe("GuestClient frame apply", () => {
 	it("welcome readOnly flag lands in the snapshot", () => {
 		const client = new GuestClient(LINK, "tester");
 		expect(client.getSnapshot().readOnly).toBe(false);
+		client.simulateHelloForTest();
 		client.applyFrameForTest(welcomeFrame(0, true));
 		expect(client.getSnapshot().readOnly).toBe(true);
 	});
@@ -98,23 +100,25 @@ describe("GuestClient frame apply", () => {
 		try {
 			const firstEntry = messageEntry("e1", { role: "user", content: "hi", timestamp: 1 });
 			const client = new GuestClient(LINK, "tester");
+			client.simulateHelloForTest();
 			client.applyFrameForTest(welcomeFrame(2));
-			expect(client.getSnapshot().phase).toBe("connecting");
+			expect(client.getSnapshot().phase).toBe("waiting");
 
 			vi.advanceTimersByTime(29_999);
-			expect(client.getSnapshot().phase).toBe("connecting");
+			expect(client.getSnapshot().phase).toBe("waiting");
 			client.applyFrameForTest(snapshotChunk([firstEntry], false));
 			expect(client.getSnapshot().entries).toEqual([firstEntry]);
-			expect(client.getSnapshot().phase).toBe("connecting");
+			expect(client.getSnapshot().phase).toBe("waiting");
 
 			vi.advanceTimersByTime(29_999);
-			expect(client.getSnapshot().phase).toBe("connecting");
+			expect(client.getSnapshot().phase).toBe("waiting");
 			vi.advanceTimersByTime(1);
 			const snap = client.getSnapshot();
 			expect(snap.phase).toBe("ended");
 			expect(snap.endedReason).toBe("timed out waiting for the host's session snapshot");
 
 			const completeClient = new GuestClient(LINK, "tester");
+			completeClient.simulateHelloForTest();
 			completeClient.applyFrameForTest(welcomeFrame(1));
 			completeClient.applyFrameForTest(snapshotChunk([firstEntry]));
 			vi.advanceTimersByTime(30_000);
