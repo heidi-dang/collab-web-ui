@@ -7,6 +7,7 @@ import { fmtTokens } from "../../lib/format";
 import type { ToolRenderHost } from "../../tool-render";
 import { Markdown } from "./Markdown";
 import { ToolCard } from "./ToolCard";
+import { AsyncResultCard } from "./AsyncResultCard";
 import "./transcript.css";
 
 export interface TranscriptProps {
@@ -195,6 +196,17 @@ const EntryRow = memo(function EntryRow({ entry, results, active, host }: EntryR
 				return (
 					<Row kind="user" gutter={<span className="tr-badge">{from}</span>} title={entry.timestamp}>
 						<MsgContent content={entry.content} />
+					</Row>
+				);
+			}
+			if (entry.customType === "async-result") {
+				return (
+					<Row kind="custom" gutter="" title={entry.timestamp}>
+						<AsyncResultCard
+							customType={entry.customType}
+							content={entry.content}
+							details={entry.details}
+						/>
 					</Row>
 				);
 			}
