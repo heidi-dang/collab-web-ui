@@ -72,6 +72,10 @@ export interface GuestSnapshot {
 	lastHeartbeatAt: number | null;
 }
 
+/** Page must be hidden at least this long before foreground recovery is triggered. */
+const BACKGROUND_STALE_AFTER_MS = 15_000;
+/** Interval between heartbeat probes while live. */
+const HEARTBEAT_INTERVAL_MS = 3_500;
 const MAX_NOTICES = 50;
 const TRANSCRIPT_TIMEOUT_MS = 10_000;
 /** Mirrors the TUI guest's WELCOME_TIMEOUT_MS: a host that never answers hello ends the join. */
@@ -109,6 +113,9 @@ export class GuestClient {
 
 	#phase: ConnectionPhase = "connecting";
 	#endedReason: string | null = null;
+	#backgroundedAt: number | null = null;
+	#foregroundRecoveryPending = false;
+	#heartbeatGeneration = 0;
 	#header: SessionHeader | null = null;
 	#entries: readonly SessionEntry[] = [];
 	#state: SessionState | null = null;
@@ -155,14 +162,16 @@ export class GuestClient {
 			if (this.#socket.isOpen && (this.#phase === "live" || this.#phase === "waiting")) {
 				const start = performance.now();
 				this.#pingPending = true;
+				const generation = this.#heartbeatGeneration;
 				void this.fetchTranscript("__health_ping__", 0)
 					.then(result => {
+						if (generation !== this.#heartbeatGeneration) return;
 						this.#pingPending = false;
 						if (result === null) {
-							// Timed out — not a successful latency measurement
 							this.#latencyMs = null;
 							this.#lastHeartbeatAt = null;
 							this.#commit();
+							this.#requestReconnectAndResync("heartbeat-timeout");
 							return;
 						}
 						this.#latencyMs = Math.round(performance.now() - start);
@@ -170,29 +179,56 @@ export class GuestClient {
 						this.#commit();
 					})
 					.catch(() => {
+						if (generation !== this.#heartbeatGeneration) return;
 						this.#pingPending = false;
 					});
 			}
-		}, 3500);
+		}, HEARTBEAT_INTERVAL_MS);
 	}
 
-	/** Suspend heartbeat while the page is hidden (iOS background freeze). */
-	suspendHeartbeat(): void {
+	/** Record that the page entered background. Suspends heartbeat and timestamps. */
+	onBackgroundChange(): void {
+		this.#backgroundedAt = Date.now();
 		this.#heartbeatSuspended = true;
+		this.#heartbeatGeneration++;
 	}
 
 	/**
-	 * Resume heartbeat and force a fresh reconnect if the socket is likely
-	 * stale (page was backgrounded long enough for iOS to suspend the socket).
+	 * Record that the page returned to foreground. Triggers a controlled
+	 * reconnect if the hidden duration exceeded {@link BACKGROUND_STALE_AFTER_MS}.
+	 * Deduplicates across visibilitychange, pageshow, and focus events.
 	 */
-	resumeAndResyncIfStale(): void {
+	onForegroundChange(): void {
+		if (this.#phase === "ended") return;
+		if (this.#foregroundRecoveryPending) return;
+		if (this.#phase === "reconnecting") return;
+		const hiddenDuration = this.#backgroundedAt !== null ? Date.now() - this.#backgroundedAt : 0;
+		this.#backgroundedAt = null;
 		this.#heartbeatSuspended = false;
-		if (this.#phase === "live" || this.#phase === "waiting") {
-			this.#socket.close();
-			// onClose fires with willReconnect=true, transitioning to
-			// reconnecting. The socket auto-reconnects and the FSM flows
-			// reconnecting → waiting → live with a fresh snapshot.
+		if (hiddenDuration >= BACKGROUND_STALE_AFTER_MS) {
+			this.#requestReconnectAndResync("foreground-stale");
 		}
+	}
+
+	#requestReconnectAndResync(reason: string): void {
+		if (this.#phase === "ended") return;
+		if (this.#foregroundRecoveryPending) return;
+		if (this.#phase === "reconnecting") return;
+
+		this.#foregroundRecoveryPending = true;
+		this.#heartbeatGeneration++;
+
+		this.#welcomed = false;
+		this.#latencyMs = null;
+		this.#lastHeartbeatAt = null;
+		this.#pingPending = false;
+		this.#clearWelcomeTimer();
+		this.#clearSnapshotProgressTimer();
+
+		this.#transitionTo("reconnecting");
+		this.#commit();
+
+		this.#socket.forceReconnect();
 	}
 
 	connect(): void {
@@ -202,15 +238,11 @@ export class GuestClient {
 			this.#commit();
 		}
 		this.#socket.connect();
-		if (!this.#welcomed && this.#welcomeTimer === null) {
-			this.#welcomeTimer = setTimeout(() => {
-				this.#welcomeTimer = null;
-				if (!this.#welcomed) this.#end("timed out waiting for the host's welcome");
-			}, WELCOME_TIMEOUT_MS);
-		}
+		if (!this.#welcomed) this.#armWelcomeTimer();
 	}
 
 	close(): void {
+		if (this.#phase === "ended") return;
 		if (this.#pingTimer !== null) {
 			clearInterval(this.#pingTimer);
 			this.#pingTimer = null;
@@ -219,6 +251,11 @@ export class GuestClient {
 		this.#heartbeatSuspended = false;
 		this.#clearWelcomeTimer();
 		this.#clearSnapshotProgressTimer();
+		this.#backgroundedAt = null;
+		this.#foregroundRecoveryPending = false;
+		this.#heartbeatGeneration++;
+		this.#transitionTo("ended", "closed");
+		this.#commit();
 		this.#socket.close();
 	}
 
@@ -310,10 +347,10 @@ export class GuestClient {
 	}
 
 	#handleOpen(): void {
-		this.#lastHeartbeatAt = Date.now();
+		this.#welcomed = false;
+		this.#transitionTo("waiting");
+		this.#armWelcomeTimer();
 		this.#socket.send({ t: "hello", proto: COLLAB_PROTO, name: this.#name, writeToken: this.#writeToken });
-		const nextPhase = this.#everConnected ? "reconnecting" : "waiting";
-		this.#transitionTo(nextPhase);
 		this.#everConnected = true;
 		this.#commit();
 	}
@@ -333,6 +370,9 @@ export class GuestClient {
 		if (this.#phase === "ended") return;
 		this.#clearWelcomeTimer();
 		this.#clearSnapshotProgressTimer();
+		this.#backgroundedAt = null;
+		this.#foregroundRecoveryPending = false;
+		this.#heartbeatGeneration++;
 		this.#transitionTo("ended", reason);
 		for (const [, pending] of this.#pendingTranscripts) {
 			clearTimeout(pending.timer);
@@ -342,6 +382,14 @@ export class GuestClient {
 		this.#clearUiRequests();
 		this.#commit();
 		this.#socket.close();
+	}
+
+	#armWelcomeTimer(): void {
+		this.#clearWelcomeTimer();
+		this.#welcomeTimer = setTimeout(() => {
+			this.#welcomeTimer = null;
+			if (!this.#welcomed) this.#end("timed out waiting for the host's welcome");
+		}, WELCOME_TIMEOUT_MS);
 	}
 
 	#clearWelcomeTimer(): void {
@@ -411,6 +459,7 @@ export class GuestClient {
 				this.#clearWelcomeTimer();
 				if (frame.entryCount === 0) {
 					this.#clearSnapshotProgressTimer();
+					this.#foregroundRecoveryPending = false;
 					this.#transitionTo("live");
 				} else {
 					this.#armSnapshotProgressTimer();
@@ -424,6 +473,7 @@ export class GuestClient {
 				this.#entries = [...this.#entries, ...frame.entries];
 				if (frame.final) {
 					this.#clearSnapshotProgressTimer();
+					this.#foregroundRecoveryPending = false;
 					this.#transitionTo("live");
 				} else {
 					this.#armSnapshotProgressTimer();
