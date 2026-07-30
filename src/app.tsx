@@ -249,26 +249,30 @@ function Session({ client, activeHash, activeSessionName, isOnline, connectionEr
 	}, [title]);
 
 	// Foreground/background detection: iOS freezes WebSockets when the page
-	// enters the background. On return, force a fresh hello → welcome →
-	// snapshot resync instead of trusting a stale socket.
+	// enters the background. On return, trigger a controlled reconnect if
+	// the hidden duration exceeds the stale threshold.
+	// All three events route through client.onBackgroundChange / onForegroundChange
+	// which deduplicates via #foregroundRecoveryPending.
 	useEffect(() => {
 		const onVisibilityChange = () => {
 			if (document.hidden) {
-				client.suspendHeartbeat();
+				client.onBackgroundChange();
 			} else {
-				client.resumeAndResyncIfStale();
+				client.onForegroundChange();
 			}
 		};
-		const onPageShow = () => {
-			// Safari bfcache restoration: the page may show without a
-			// visibilitychange event. Treat any pageshow as potential
-			// background resume.
-			client.resumeAndResyncIfStale();
+		const onPageShow = (e: PageTransitionEvent) => {
+			// Safari bfcache restoration: pageshow fires on initial load
+			// and on bfcache restore. Only the persisted case indicates a
+			// cached restoration that may have a stale socket.
+			if (e.persisted) {
+				client.onForegroundChange();
+			}
 		};
 		const onFocus = () => {
 			// Window focus after the page was backgrounded (e.g. alt-tab
 			// on desktop, or switching Safari tabs on iOS).
-			client.resumeAndResyncIfStale();
+			client.onForegroundChange();
 		};
 		document.addEventListener("visibilitychange", onVisibilityChange);
 		window.addEventListener("pageshow", onPageShow);

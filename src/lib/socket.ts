@@ -87,6 +87,27 @@ export class CollabSocket {
 			});
 	}
 
+	/**
+	 * Controlled reconnect: tears down the current connection and immediately
+	 * opens a replacement without calling onClose. Safe for foreground recovery
+	 * — does NOT set #closed, so connect() and auto-retry remain usable.
+	 */
+	forceReconnect(): void {
+		this.#clearRetry();
+		this.#attempt = 0;
+		this.#pendingSends.length = 0;
+		const oldWs = this.#ws;
+		this.#ws = null;
+		if (oldWs) {
+			try {
+				oldWs.close(1000);
+			} catch {
+				// already closing/closed
+			}
+		}
+		this.#openSocket();
+	}
+
 	/** Intentional close: clears any retry timer, suppresses reconnect. A later connect() starts fresh. */
 	close(): void {
 		const hadActivity = this.#ws !== null || this.#retryTimer !== undefined;
