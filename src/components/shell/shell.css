@@ -636,6 +636,61 @@
 	white-space: nowrap;
 }
 
+/* ---- composer image previews ---- */
+.sh-composer-previews {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 0 10px 4px;
+}
+
+.sh-composer-preview {
+	position: relative;
+	width: 56px;
+	height: 56px;
+	border-radius: var(--radius-sm, 4px);
+	overflow: hidden;
+	border: 1px solid var(--border-strong, rgba(127, 219, 202, 0.28));
+	flex-shrink: 0;
+}
+
+.sh-composer-preview-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.sh-composer-preview-remove {
+	position: absolute;
+	top: 1px;
+	right: 1px;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.7);
+	border: none;
+	color: #fff;
+	cursor: pointer;
+	display: grid;
+	place-items: center;
+	padding: 0;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.sh-composer-preview:hover .sh-composer-preview-remove {
+	opacity: 1;
+}
+
+.sh-composer-preview-remove:hover {
+	background: rgba(239, 83, 80, 0.8);
+}
+
+.sh-composer .hidden {
+	display: none;
+}
+
 /* ---- banners ---- */
 .sh-banner {
 	position: fixed;

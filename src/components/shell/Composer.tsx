@@ -1,7 +1,8 @@
-import { Activity, Loader2, SendHorizontal, Square, Wifi } from "lucide-react";
+import { Activity, Image, Loader2, SendHorizontal, Square, Wifi, X } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GuestClient, GuestSnapshot } from "../../lib/client";
+import type { ImageContent } from "@oh-my-pi/pi-wire";
 
 export interface ComposerProps {
 	client: GuestClient;
@@ -111,6 +112,8 @@ function AskEditor({ prefill, onSubmit }: AskEditorProps): ReactNode {
 
 export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 	const [text, setText] = useState("");
+	const [images, setImages] = useState<ImageContent[]>([]);
+	const fileRef = useRef<HTMLInputElement | null>(null);
 	const taRef = useRef<HTMLTextAreaElement | null>(null);
 	const { composingRef, onCompositionStart, onCompositionEnd } = useCompositionGuard();
 
@@ -120,7 +123,7 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 	const canPrompt = live && !readOnly;
 	const busy = snapshot.working || (snapshot.state?.isStreaming ?? false);
 	const queued = snapshot.state?.queuedMessageCount ?? 0;
-	const canSend = canPrompt && text.trim().length > 0;
+	const canSend = canPrompt && (text.trim().length > 0 || images.length > 0);
 
 	useLayoutEffect(() => {
 		autosize(taRef.current);
@@ -128,10 +131,45 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 
 	const send = useCallback((): void => {
 		const trimmed = text.trim();
-		if (!trimmed || !live || readOnly) return;
-		client.sendPrompt(trimmed);
+		if ((!trimmed && images.length === 0) || !live || readOnly) return;
+		client.sendPrompt(trimmed, images.length > 0 ? images : undefined);
 		setText("");
-	}, [client, live, readOnly, text]);
+		setImages([]);
+	}, [client, live, readOnly, text, images]);
+
+	const pickImages = useCallback(() => {
+		fileRef.current?.click();
+	}, []);
+
+	const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		const files = e.target.files;
+		if (!files || files.length === 0) return;
+		const pending: Promise<ImageContent>[] = [];
+		for (let i = 0; i < files.length; i++) {
+			const file = files[i];
+			if (!file.type.startsWith("image/")) continue;
+			pending.push(
+				new Promise<ImageContent>((resolve, reject) => {
+					const reader = new FileReader();
+					reader.onload = () => {
+						const data = reader.result as string;
+						const base64 = data.split(",", 2)[1] ?? data;
+						resolve({ type: "image", data: base64, mimeType: file.type });
+					};
+					reader.onerror = () => reject(reader.error);
+					reader.readAsDataURL(file);
+				}),
+			);
+		}
+		Promise.all(pending).then(results => {
+			setImages(prev => [...prev, ...results]);
+		});
+		e.target.value = "";
+	}, []);
+
+	const removeImage = useCallback((index: number) => {
+		setImages(prev => prev.filter((_, i) => i !== index));
+	}, []);
 
 	const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
 		if (shouldSubmitOnEnter(e, Boolean(composingRef.current))) {
@@ -226,6 +264,35 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 	return (
 		<div className="sh-composer">
 			<div className="sh-composer-inner">
+				<input
+					ref={fileRef}
+					type="file"
+					accept="image/*"
+					multiple
+					className="hidden"
+					onChange={onFileChange}
+				/>
+				{images.length > 0 && (
+					<div className="sh-composer-previews">
+						{images.map((img, i) => (
+							<div key={i} className="sh-composer-preview">
+								<img
+									src={`data:${img.mimeType};base64,${img.data}`}
+									alt="attached"
+									className="sh-composer-preview-img"
+								/>
+								<button
+									type="button"
+									className="sh-composer-preview-remove"
+									onClick={() => removeImage(i)}
+									title="remove image"
+								>
+									<X size={10} />
+								</button>
+							</div>
+						))}
+					</div>
+				)}
 				<textarea
 					ref={taRef}
 					className="sh-composer-input"
@@ -247,6 +314,17 @@ export function Composer({ client, snapshot }: ComposerProps): ReactNode {
 					spellCheck={false}
 				/>
 				<div className="sh-composer-actions">
+					{!readOnly && !busy && (
+						<button
+							type="button"
+							className="sh-btn sh-btn-icon"
+							onClick={pickImages}
+							disabled={!canPrompt}
+							title="attach image"
+						>
+							<Image size={14} />
+						</button>
+					)}
 					{busy && queued > 0 && (
 						<span className="sh-queued">
 							<span className="sh-queued-label">queued </span>×{queued}

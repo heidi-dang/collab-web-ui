@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Pencil, MousePointer2, Hand, Trash2, Download, Bot, Sun, Moon, Hash } from 'lucide-react';
+import { Search, Pencil, MousePointer2, Hand, Trash2, Download, Sun, Moon, Hash } from 'lucide-react';
 import { useSessionManager } from '../../hooks/useSessionManager';
 
 interface CommandPaletteProps {
   onToolChange?: (tool: 'draw' | 'select' | 'pan') => void;
   onClearCanvas?: () => void;
   onExportPng?: () => void;
-  onToggleAIChat?: () => void;
+
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
 }
@@ -16,7 +16,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onToolChange,
   onClearCanvas,
   onExportPng,
-  onToggleAIChat,
+
   theme = 'dark',
   onToggleTheme,
 }) => {
@@ -59,13 +59,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       shortcut: 'H',
       icon: Hand,
       perform: () => onToolChange?.('pan'),
-    },
-    {
-      id: 'ai-chat',
-      label: 'Toggle Canvas AI Assistant',
-      shortcut: 'Shift + A',
-      icon: Bot,
-      perform: () => onToggleAIChat?.(),
     },
     {
       id: 'export-png',

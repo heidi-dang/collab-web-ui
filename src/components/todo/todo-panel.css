@@ -1,0 +1,293 @@
+/* Todo Panel — tp- namespace.
+ * Matches the AnalyticsDrawer drawer pattern: right-side overlay panel. */
+
+/* ---- overlay backdrop ---- */
+.tp-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	background: var(--backdrop, rgba(1, 15, 27, 0.75));
+	display: flex;
+	justify-content: flex-end;
+}
+
+/* ---- panel shell ---- */
+.tp-panel {
+	width: 380px;
+	max-width: 90vw;
+	height: 100%;
+	background: var(--bg, #011627);
+	border-left: 1px solid var(--ring, rgba(127, 219, 202, 0.28));
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	box-shadow: var(--shadow-overlay, 0 16px 40px rgba(0, 8, 18, 0.75));
+}
+
+/* ---- header ---- */
+.tp-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	padding: 14px 16px 10px;
+	border-bottom: 1px solid var(--border-strong, rgba(127, 219, 202, 0.28));
+	flex-shrink: 0;
+}
+
+.tp-header-left {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+.tp-header-icon {
+	color: var(--accent, #7fdbca);
+	margin-top: 2px;
+	flex-shrink: 0;
+}
+
+.tp-header-title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--fg, #d6deeb);
+	line-height: 1.3;
+}
+
+.tp-header-sub {
+	margin: 1px 0 0;
+	font-size: 12px;
+	color: var(--fg-muted, #7e99b3);
+}
+
+.tp-close-btn {
+	background: none;
+	border: none;
+	color: var(--fg-muted, #7e99b3);
+	cursor: pointer;
+	padding: 4px;
+	border-radius: var(--radius-sm, 4px);
+	flex-shrink: 0;
+	display: grid;
+	place-items: center;
+}
+
+.tp-close-btn:hover {
+	color: var(--fg, #d6deeb);
+	background: color-mix(in oklch, var(--fg, #d6deeb) 8%, transparent);
+}
+
+/* ---- progress bar ---- */
+.tp-progress-wrap {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 16px;
+	flex-shrink: 0;
+}
+
+.tp-progress-track {
+	flex: 1;
+	height: 6px;
+	background: var(--bg-inset, rgba(1, 13, 24, 0.8));
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.tp-progress-fill {
+	height: 100%;
+	background: var(--accent, #7fdbca);
+	border-radius: 3px;
+	transition: width 0.35s ease;
+}
+
+.tp-progress-fill.tp-progress-done {
+	background: var(--ok, #22da6e);
+}
+
+.tp-progress-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--fg-muted, #7e99b3);
+	min-width: 3ch;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---- scrollable body ---- */
+.tp-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 8px 16px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+/* ---- phases ---- */
+.tp-phase {
+	margin-bottom: 6px;
+}
+
+.tp-phase-header {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 6px 4px 4px;
+	border-bottom: 1px solid rgba(127, 219, 202, 0.12);
+	margin-bottom: 2px;
+}
+
+.tp-phase-num {
+	font-size: 11px;
+	font-weight: 700;
+	color: var(--fg-faint, #5f7e97);
+	font-variant-numeric: tabular-nums;
+}
+
+.tp-phase-name {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--fg, #d6deeb);
+}
+
+.tp-phase-count {
+	margin-left: auto;
+	font-size: 11px;
+	color: var(--fg-faint, #5f7e97);
+	font-variant-numeric: tabular-nums;
+}
+
+.tp-phase-tasks {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+/* ---- task rows ---- */
+.tp-task {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 4px 4px 8px;
+	border-radius: var(--radius-sm, 4px);
+	transition: background 0.15s;
+}
+
+.tp-task:hover {
+	background: color-mix(in oklch, var(--fg, #d6deeb) 3%, transparent);
+}
+
+.tp-task-icon {
+	flex-shrink: 0;
+	display: grid;
+	place-items: center;
+	width: 16px;
+}
+
+.tp-task-label {
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--fg, #d6deeb);
+}
+
+/* ---- status-specific icons ---- */
+.tp-icon-pending {
+	color: var(--fg-faint, #5f7e97);
+}
+
+.tp-icon-in-progress {
+	color: var(--accent, #7fdbca);
+	animation: tp-spin 2s linear infinite;
+}
+
+.tp-icon-completed {
+	color: var(--ok, #22da6e);
+}
+
+.tp-icon-abandoned {
+	color: var(--err, #ef5350);
+}
+
+/* ---- completed task text ---- */
+.tp-task--completed .tp-task-label {
+	color: var(--fg-faint, #5f7e97);
+	text-decoration: line-through;
+}
+
+.tp-task--in_progress .tp-task-label {
+	color: var(--accent, #d6deeb);
+}
+
+.tp-task--abandoned .tp-task-label {
+	color: var(--fg-muted, #7e99b3);
+	text-decoration: line-through;
+	opacity: 0.6;
+}
+
+/* ---- empty state ---- */
+.tp-empty {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	padding: 40px 16px;
+	gap: 8px;
+}
+
+.tp-empty-icon {
+	color: var(--fg-faint, #5f7e97);
+	opacity: 0.5;
+}
+
+.tp-empty-title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--fg-muted, #7e99b3);
+}
+
+.tp-empty-desc {
+	margin: 0;
+	font-size: 12px;
+	color: var(--fg-faint, #5f7e97);
+	line-height: 1.5;
+}
+
+.tp-empty-desc code {
+	font-family: var(--font-mono, ui-monospace, "SF Mono", monospace);
+	font-size: 11px;
+	background: var(--bg-inset, rgba(1, 13, 24, 0.8));
+	padding: 1px 5px;
+	border-radius: 3px;
+	color: var(--accent, #7fdbca);
+}
+
+/* ---- animation ---- */
+@keyframes tp-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tp-icon-in-progress {
+		animation: none;
+	}
+}
+
+/* ---- scrollbar ---- */
+.tp-body::-webkit-scrollbar {
+	width: 6px;
+}
+
+.tp-body::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.tp-body::-webkit-scrollbar-thumb {
+	background: var(--fg-faint, #5f7e97);
+	border-radius: 3px;
+}

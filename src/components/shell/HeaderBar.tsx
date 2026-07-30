@@ -1,4 +1,4 @@
-import { BarChart3, Coins, Cpu, LogOut, PanelRight, Zap } from "lucide-react";
+import { BarChart3, Coins, Cpu, ListTodo, LogOut, PanelRight, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import type { GuestSnapshot } from "../../lib/client";
@@ -13,6 +13,7 @@ export interface HeaderBarProps {
 	onToggleRail(): void;
 	onLeave(): void;
 	onOpenAnalytics?(): void;
+	onOpenTodo?(): void;
 }
 
 export function HeaderBar({
@@ -22,6 +23,7 @@ export function HeaderBar({
 	onToggleRail,
 	onLeave,
 	onOpenAnalytics,
+	onOpenTodo,
 }: HeaderBarProps): ReactNode {
 	const { header, state, phase, readOnly, entries, stream, progress } = snapshot;
 	const title = header?.title ?? state?.sessionName ?? "session";
@@ -142,6 +144,16 @@ export function HeaderBar({
 					</span>
 				)}
 				<ThemeToggle />
+				{onOpenTodo && (
+					<button
+						type="button"
+						className="sh-btn sh-btn-icon"
+						onClick={onOpenTodo}
+						title="Task List"
+					>
+						<ListTodo size={14} />
+					</button>
+				)}
 				{onOpenAnalytics && (
 					<button
 						type="button"

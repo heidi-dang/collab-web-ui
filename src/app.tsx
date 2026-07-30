@@ -10,7 +10,8 @@ import { ConnectScreen } from "./components/shell/ConnectScreen";
 import { HeaderBar } from "./components/shell/HeaderBar";
 import { Toasts } from "./components/shell/Toasts";
 import { Transcript } from "./components/transcript/Transcript";
-import { CommandPalette, AIChatPanel, OffscreenCanvasBoard, FloatingToolbar, ToolType } from "./components/collaborative";
+import { CommandPalette, OffscreenCanvasBoard, FloatingToolbar, ToolType } from "./components/collaborative";
+import { TodoPanel } from "./components/todo";
 import { CanvasErrorBoundary } from "./components/layout/CanvasErrorBoundary";
 import { parseCollabLink } from "./lib/link";
 import { useSessionManager } from "./hooks/useSessionManager";
@@ -215,7 +216,7 @@ function Session({ client, activeHash, activeSessionName, isOnline, connectionEr
 	const [railOpen, setRailOpen] = useState(false);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [analyticsOpen, setAnalyticsOpen] = useState(false);
-	const [aiChatOpen, setAiChatOpen] = useState(false);
+	const [todoOpen, setTodoOpen] = useState(false);
 	const [activeTool, setActiveTool] = useState<ToolType>("select");
 	const [canvasOverlayActive, setCanvasOverlayActive] = useState(false);
 	const autoOpenedRef = useRef(false);
@@ -274,7 +275,6 @@ function Session({ client, activeHash, activeSessionName, isOnline, connectionEr
 					setActiveTool(tool);
 					setCanvasOverlayActive(true);
 				}}
-				onToggleAIChat={() => setAiChatOpen(prev => !prev)}
 			/>
 
 			{/* 3. Offscreen Canvas Board with key={activeHash} to destroy & re-instantiate worker on workspace switch */}
@@ -303,6 +303,7 @@ function Session({ client, activeHash, activeSessionName, isOnline, connectionEr
 				onToggleRail={() => setRailOpen(open => !open)}
 				onLeave={onLeave}
 				onOpenAnalytics={() => setAnalyticsOpen(true)}
+				onOpenTodo={() => setTodoOpen(true)}
 			/>
 			{showBudgetBanner && (
 				<div
@@ -362,7 +363,7 @@ function Session({ client, activeHash, activeSessionName, isOnline, connectionEr
 				</>
 			)}
 			{analyticsOpen && <AnalyticsDrawer snapshot={snap} onClose={() => setAnalyticsOpen(false)} />}
-			<AIChatPanel endpoint="/api/chat" isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
+			{todoOpen && <TodoPanel snapshot={snap} onClose={() => setTodoOpen(false)} />}
 			<Banners phase={snap.phase} endedReason={snap.endedReason} onRejoin={onRejoin} onNewLink={onLeave} />
 			<Toasts notices={snap.notices} />
 		</div>

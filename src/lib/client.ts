@@ -14,6 +14,7 @@ import type {
 	CollabUiRequest,
 	CollabUiResponseValue,
 	HostFrame,
+	ImageContent,
 	SessionEntry,
 	SessionHeader,
 	SessionState,
@@ -199,8 +200,8 @@ export class GuestClient {
 		return this.#snapshot;
 	}
 
-	sendPrompt(text: string): void {
-		this.#socket.send({ t: "prompt", text });
+	sendPrompt(text: string, images?: ImageContent[]): void {
+		this.#socket.send({ t: "prompt", text, images });
 	}
 
 	sendUiResponse(reqId: number, value?: CollabUiResponseValue): void {
@@ -247,7 +248,7 @@ export class GuestClient {
 
 		// FSM transition matrix validation
 		const VALID_TRANSITIONS: Record<ConnectionPhase, ConnectionPhase[]> = {
-			connecting: ["waiting", "ended"],
+			connecting: ["waiting", "live", "ended"],
 			waiting: ["live", "reconnecting", "ended"],
 			live: ["reconnecting", "ended"],
 			reconnecting: ["waiting", "ended"],
