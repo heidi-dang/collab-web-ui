@@ -549,6 +549,80 @@
 	background: color-mix(in srgb, var(--err) 15%, transparent);
 }
 
+.ag-ws-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.ag-ws-rename {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--fg-faint);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	opacity: 0.4;
+	transition: all 120ms ease;
+}
+
+.ag-ws-rename:hover {
+	opacity: 1;
+	color: var(--accent);
+	background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.ag-ws-edit-input {
+	flex: 1;
+	min-width: 0;
+	padding: 2px 6px;
+	border: 1px solid var(--ring);
+	border-radius: var(--radius-sm);
+	background: var(--bg-inset);
+	color: var(--fg);
+	font: inherit;
+	font-size: 12px;
+	outline: none;
+}
+
+.ag-confirm-text {
+	font-size: 13px;
+	color: var(--fg-muted);
+	line-height: 1.6;
+	padding: 4px 0;
+}
+
+.ag-confirm-text strong {
+	color: var(--fg);
+}
+
+.ag-btn-danger {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 14px;
+	border: 1px solid color-mix(in srgb, var(--err) 40%, transparent);
+	border-radius: var(--radius);
+	background: color-mix(in srgb, var(--err) 12%, transparent);
+	color: var(--err);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 120ms ease;
+}
+
+.ag-btn-danger:hover {
+	background: color-mix(in srgb, var(--err) 22%, transparent);
+	border-color: color-mix(in srgb, var(--err) 60%, transparent);
+}
+
 .ag-add-form {
 	display: flex;
 	flex-direction: column;

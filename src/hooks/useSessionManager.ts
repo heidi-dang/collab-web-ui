@@ -144,12 +144,19 @@ export const useSessionManager = () => {
     }
   }, [activeHash, switchSession]);
 
+  const renameSession = useCallback((id: string, newName: string) => {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, name: newName.trim() || s.name } : s)),
+    );
+  }, []);
+
   return {
     activeHash,
     sessions,
     switchSession,
     addSession,
     removeSession,
+    renameSession,
   };
 };
 

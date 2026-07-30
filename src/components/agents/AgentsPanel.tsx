@@ -4,9 +4,9 @@ import type {
 	SubagentLifecyclePayload,
 	SubagentProgressPayload,
 } from "@oh-my-pi/pi-wire";
-import { Check, Hash, Layers, Plus, Server, Trash2, X } from "lucide-react";
+import { Check, Hash, Layers, Pencil, Plus, Server, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSessionManager } from "../../hooks/useSessionManager";
 import { PortalModal } from "../common/PortalModal";
 import { fmtCost, fmtDuration, fmtTokens, relTime } from "../../lib/format";
@@ -90,11 +90,15 @@ export function AgentsPanel(props: {
 }): ReactNode {
 	const { agents, progress, lifecycle, selectedId, onSelect } = props;
 	const now = useNow(1000);
-	const { activeHash, sessions, switchSession, addSession, removeSession } = useSessionManager();
+	const { activeHash, sessions, switchSession, addSession, removeSession, renameSession } = useSessionManager();
 
 	const [isAddOpen, setIsAddOpen] = useState(false);
 	const [newName, setNewName] = useState("");
 	const [newHash, setNewHash] = useState("");
+	const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+	const [editingId, setEditingId] = useState<string | null>(null);
+	const [editName, setEditName] = useState("");
+	const editRef = useRef<HTMLInputElement | null>(null);
 
 	const handleAddServer = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -103,6 +107,27 @@ export function AgentsPanel(props: {
 		setNewName("");
 		setNewHash("");
 		setIsAddOpen(false);
+	};
+
+	const handleRename = (id: string) => {
+		if (editName.trim() && editName.trim() !== sessions.find(s => s.id === id)?.name) {
+			renameSession(id, editName.trim());
+		}
+		setEditingId(null);
+	};
+
+	const startRename = (id: string, currentName: string) => {
+		setEditingId(id);
+		setEditName(currentName);
+		// Focus the input on next render
+		setTimeout(() => editRef.current?.focus(), 0);
+	};
+
+	const handleConfirmDelete = () => {
+		if (confirmDeleteId) {
+			removeSession(confirmDeleteId);
+			setConfirmDeleteId(null);
+		}
 	};
 
 	const sorted = useMemo(() => {
@@ -184,39 +209,105 @@ export function AgentsPanel(props: {
 				<div className="ag-workspace-list">
 					{sessions.map((session) => {
 						const isActive = session.hash === activeHash;
+						const isEditing = editingId === session.id;
 						return (
 							<div
 								key={session.id}
 								className={`ag-ws-card ${isActive ? "ag-ws-card--active" : ""}`}
-								onClick={() => switchSession(session.hash)}
+								onClick={() => {
+									if (isEditing) return;
+									switchSession(session.hash);
+								}}
 							>
 								<div className="ag-ws-info">
-									<span className="ag-ws-name">
-										<Hash size={12} className={isActive ? "text-indigo" : "text-faint"} />
-										{session.name}
-									</span>
-								</div>
-								{isActive ? (
-									<span className="ag-chip ag-chip--running">Connected</span>
-								) : (
-									sessions.length > 1 && (
-										<button
-											type="button"
-											className="ag-ws-delete"
-											onClick={(e) => {
-												e.stopPropagation();
-												removeSession(session.id);
+									{isEditing ? (
+										<input
+											ref={editRef}
+											className="ag-ws-edit-input"
+											type="text"
+											value={editName}
+											onChange={(e) => setEditName(e.target.value)}
+											onBlur={() => handleRename(session.id)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter") handleRename(session.id);
+												if (e.key === "Escape") setEditingId(null);
 											}}
-											title="Remove Server"
-										>
-											<Trash2 size={12} />
-										</button>
-									)
-								)}
+											onClick={(e) => e.stopPropagation()}
+											maxLength={48}
+										/>
+									) : (
+										<span className="ag-ws-name">
+											<Hash size={12} className={isActive ? "text-indigo" : "text-faint"} />
+											{session.name}
+										</span>
+									)}
+								</div>
+								<div className="ag-ws-actions">
+									{isActive ? (
+										<span className="ag-chip ag-chip--running">Connected</span>
+									) : (
+										sessions.length > 1 && (
+											<>
+												<button
+													type="button"
+													className="ag-ws-rename"
+													onClick={(e) => {
+														e.stopPropagation();
+														startRename(session.id, session.name);
+													}}
+													title="Rename Server"
+												>
+													<Pencil size={10} />
+												</button>
+												<button
+													type="button"
+													className="ag-ws-delete"
+													onClick={(e) => {
+														e.stopPropagation();
+														setConfirmDeleteId(session.id);
+													}}
+													title="Remove Server"
+												>
+													<Trash2 size={12} />
+												</button>
+											</>
+										)
+									)}
+								</div>
 							</div>
 						);
 					})}
 				</div>
+
+				{/* Confirm Delete Modal */}
+				<PortalModal
+					isOpen={confirmDeleteId !== null}
+					onClose={() => setConfirmDeleteId(null)}
+					title="Remove Server"
+				>
+					<p className="ag-confirm-text">
+						Are you sure you want to remove{" "}
+						<strong>{sessions.find((s) => s.id === confirmDeleteId)?.name ?? "this server"}</strong>?
+						<br />
+						This action cannot be undone.
+					</p>
+					<div className="ag-add-actions flex items-center justify-end gap-2 pt-4">
+						<button
+							type="button"
+							className="ag-btn-secondary"
+							onClick={() => setConfirmDeleteId(null)}
+						>
+							Cancel
+						</button>
+						<button
+							type="button"
+							className="ag-btn-danger"
+							onClick={handleConfirmDelete}
+						>
+							<Trash2 size={12} /> Remove
+						</button>
+					</div>
+				</PortalModal>
 			</div>
 
 			<div className="ag-divider" />
