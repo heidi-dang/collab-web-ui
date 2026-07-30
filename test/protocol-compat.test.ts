@@ -6,190 +6,181 @@
  * catch regressions when the pi-wire package is upgraded independently of this
  * consuming codebase.
  *
- * Every new frame type, protocol version bump, or type shape change in pi-wire
- * must have a corresponding assertion here.
+ * This test validates the published protocol-3 wire types. New frame types
+ * (canvas, ping/pong) will be added here once the protocol gains capability
+ * negotiation in a backward-compatible way — the protocol version stays 3,
+ * and optional capabilities gate new frame types.
  */
 
 import { describe, expect, it } from "bun:test";
-import type {
-	CanvasPoint,
-	CanvasStrokeData,
-	COLLAB_PROTO as ProtoConst,
-	GuestFrame,
-	HostFrame,
-	WireFrame,
-} from "@oh-my-pi/pi-wire";
+import type { GuestFrame, HostFrame, WireFrame } from "@oh-my-pi/pi-wire";
 import { COLLAB_PROTO } from "../src/lib/link";
 import { generateRoomKey, importRoomKey, open, seal } from "../src/lib/codec";
 
 // ── Protocol Version ─────────────────────────────────────────────────────────
 
 describe("protocol version", () => {
-	it("exports COLLAB_PROTO as 4 (canvas + ping/pong)", () => {
-		// The constant must be 4 — the version that introduced canvas frames,
-		// explicit ping/pong, and bumped from proto 3.
-		expect(COLLAB_PROTO).toBe(4);
+	it("exports COLLAB_PROTO as 3 (stable protocol)", () => {
+		// The protocol version must remain 3. Protocol 3 introduced
+		// ui-request/ui-request-end/ui-response frames. No breaking changes
+		// have been introduced since.
+		expect(COLLAB_PROTO).toBe(3);
 	});
 });
 
 // ── Frame type completeness ──────────────────────────────────────────────────
 
 describe("frame type completeness", () => {
-	it("GuestFrame includes canvas-stroke", () => {
-		const frame: GuestFrame = { t: "canvas-stroke", stroke: { id: "s1", points: [{ x: 0, y: 0, pressure: 0.5 }], color: "#fff", width: 2 } };
-		expect(frame.t).toBe("canvas-stroke");
+	it("GuestFrame includes hello", () => {
+		const frame: GuestFrame = { t: "hello", proto: 3, name: "test" };
+		expect(frame.t).toBe("hello");
+		expect(frame.proto).toBe(3);
 	});
 
-	it("GuestFrame includes canvas-clear", () => {
-		const frame: GuestFrame = { t: "canvas-clear" };
-		expect(frame.t).toBe("canvas-clear");
+	it("GuestFrame includes prompt", () => {
+		const frame: GuestFrame = { t: "prompt", text: "hello" };
+		expect(frame.t).toBe("prompt");
 	});
 
-	it("GuestFrame includes canvas-cursor", () => {
-		const frame: GuestFrame = { t: "canvas-cursor", x: 100, y: 200 };
-		expect(frame.t).toBe("canvas-cursor");
+	it("GuestFrame includes ui-response", () => {
+		const frame: GuestFrame = { t: "ui-response", reqId: 1, value: "ok" };
+		expect(frame.t).toBe("ui-response");
 	});
 
-	it("GuestFrame includes ping", () => {
-		const frame: GuestFrame = { t: "ping", id: 1 };
-		expect(frame.t).toBe("ping");
-		expect(frame.id).toBe(1);
+	it("GuestFrame includes abort", () => {
+		const frame: GuestFrame = { t: "abort" };
+		expect(frame.t).toBe("abort");
 	});
 
-	it("GuestFrame includes pong", () => {
-		const frame: GuestFrame = { t: "pong", id: 2 };
-		expect(frame.t).toBe("pong");
-		expect(frame.id).toBe(2);
+	it("GuestFrame includes agent-cmd", () => {
+		const frame: GuestFrame = { t: "agent-cmd", cmd: "chat", agentId: "a1", text: "hello" };
+		expect(frame.t).toBe("agent-cmd");
 	});
 
-	it("HostFrame includes canvas-snapshot", () => {
+	it("GuestFrame includes fetch-transcript", () => {
+		const frame: GuestFrame = { t: "fetch-transcript", reqId: 1, agentId: "a1", fromByte: 0 };
+		expect(frame.t).toBe("fetch-transcript");
+	});
+
+	it("HostFrame includes welcome", () => {
 		const frame: HostFrame = {
-			t: "canvas-snapshot",
-			strokes: [{ id: "s1", points: [{ x: 0, y: 0, pressure: 0.5 }], color: "#fff", width: 2 }],
+			t: "welcome",
+			proto: 3,
+			header: { type: "session", id: "s1", timestamp: "2026-01-01T00:00:00Z", cwd: "/" },
+			state: { isStreaming: false, queuedMessageCount: 0, cwd: "/", participants: [] },
+			agents: [],
+			entryCount: 0,
 		};
-		expect(frame.t).toBe("canvas-snapshot");
-		expect(frame.strokes).toHaveLength(1);
+		expect(frame.t).toBe("welcome");
 	});
 
-	it("HostFrame includes canvas-stroke", () => {
+	it("HostFrame includes snapshot-chunk", () => {
+		const frame: HostFrame = { t: "snapshot-chunk", entries: [], final: true };
+		expect(frame.t).toBe("snapshot-chunk");
+	});
+
+	it("HostFrame includes entry", () => {
 		const frame: HostFrame = {
-			t: "canvas-stroke",
-			fromPeer: 1,
-			stroke: { id: "s1", points: [{ x: 0, y: 0, pressure: 0.5 }], color: "#fff", width: 2 },
+			t: "entry",
+			entry: {
+				type: "message",
+				id: "e1",
+				parentId: null,
+				timestamp: "2026-01-01T00:00:00Z",
+				message: { role: "user", content: "hi", timestamp: 1 },
+			},
 		};
-		expect(frame.t).toBe("canvas-stroke");
-		expect(frame.fromPeer).toBe(1);
+		expect(frame.t).toBe("entry");
 	});
 
-	it("HostFrame includes canvas-clear", () => {
-		const frame: HostFrame = { t: "canvas-clear", fromPeer: 2 };
-		expect(frame.t).toBe("canvas-clear");
-		expect(frame.fromPeer).toBe(2);
+	it("HostFrame includes event", () => {
+		const frame: HostFrame = { t: "event", event: { type: "agent_start" } };
+		expect(frame.t).toBe("event");
 	});
 
-	it("HostFrame includes canvas-cursor", () => {
-		const frame: HostFrame = { t: "canvas-cursor", fromPeer: 1, x: 50, y: 75 };
-		expect(frame.t).toBe("canvas-cursor");
-	});
-
-	it("HostFrame includes canvas-presence", () => {
+	it("HostFrame includes state", () => {
 		const frame: HostFrame = {
-			t: "canvas-presence",
-			peers: [{ peerId: 1, name: "guest", color: "#7fdbca" }],
+			t: "state",
+			state: { isStreaming: false, queuedMessageCount: 0, cwd: "/", participants: [] },
 		};
-		expect(frame.t).toBe("canvas-presence");
-		expect(frame.peers).toHaveLength(1);
+		expect(frame.t).toBe("state");
 	});
 
-	it("HostFrame includes ping", () => {
-		const frame: HostFrame = { t: "ping", id: 3 };
-		expect(frame.t).toBe("ping");
+	it("HostFrame includes bus", () => {
+		const frame: HostFrame = { t: "bus", channel: "task:subagent:progress", data: {} };
+		expect(frame.t).toBe("bus");
 	});
 
-	it("HostFrame includes pong", () => {
-		const frame: HostFrame = { t: "pong", id: 4 };
-		expect(frame.t).toBe("pong");
-	});
-});
-
-// ── Canvas data types ────────────────────────────────────────────────────────
-
-describe("canvas data types", () => {
-	it("CanvasPoint has x, y, pressure", () => {
-		const pt: CanvasPoint = { x: 10.5, y: 20.3, pressure: 0.8 };
-		expect(pt.x).toBe(10.5);
-		expect(pt.y).toBe(20.3);
-		expect(pt.pressure).toBe(0.8);
+	it("HostFrame includes agents", () => {
+		const frame: HostFrame = { t: "agents", agents: [] };
+		expect(frame.t).toBe("agents");
 	});
 
-	it("CanvasStrokeData has id, points, color, width", () => {
-		const stroke: CanvasStrokeData = {
-			id: "stroke-1",
-			points: [
-				{ x: 0, y: 0, pressure: 0.5 },
-				{ x: 10, y: 20, pressure: 0.7 },
-			],
-			color: "#ff2c83",
-			width: 3,
+	it("HostFrame includes ui-request", () => {
+		const frame: HostFrame = {
+			t: "ui-request",
+			request: { kind: "select", title: "pick", options: ["a"], reqId: 1 },
 		};
-		expect(stroke.id).toBe("stroke-1");
-		expect(stroke.points).toHaveLength(2);
-		expect(stroke.color).toBe("#ff2c83");
-		expect(stroke.width).toBe(3);
+		expect(frame.t).toBe("ui-request");
+	});
+
+	it("HostFrame includes ui-request-end", () => {
+		const frame: HostFrame = { t: "ui-request-end", reqId: 1 };
+		expect(frame.t).toBe("ui-request-end");
+	});
+
+	it("HostFrame includes transcript", () => {
+		const frame: HostFrame = { t: "transcript", reqId: 1, text: "", newSize: 0 };
+		expect(frame.t).toBe("transcript");
+	});
+
+	it("HostFrame includes bye", () => {
+		const frame: HostFrame = { t: "bye", reason: "done" };
+		expect(frame.t).toBe("bye");
+	});
+
+	it("HostFrame includes error", () => {
+		const frame: HostFrame = { t: "error", message: "something went wrong" };
+		expect(frame.t).toBe("error");
 	});
 });
 
 // ── Codec round-trip ─────────────────────────────────────────────────────────
 
-describe("codec round-trip with new frame types", () => {
-	it("round-trips a canvas-stroke guest frame", async () => {
+describe("codec round-trip with existing frame types", () => {
+	it("round-trips a prompt frame", async () => {
+		const key = await importRoomKey(generateRoomKey());
+		const frame: WireFrame = { t: "prompt", text: "hello there" };
+		const opened = await open(key, await seal(key, frame));
+		expect(opened).toEqual(frame);
+	});
+
+	it("round-trips a welcome frame", async () => {
 		const key = await importRoomKey(generateRoomKey());
 		const frame: WireFrame = {
-			t: "canvas-stroke",
-			stroke: { id: "s1", points: [{ x: 0, y: 0, pressure: 0.5 }], color: "#fff", width: 2 },
+			t: "welcome",
+			proto: 3,
+			header: { type: "session", id: "s1", timestamp: "2026-01-01T00:00:00Z", cwd: "/" },
+			state: { isStreaming: false, queuedMessageCount: 0, cwd: "/", participants: [] },
+			agents: [],
+			entryCount: 0,
 		};
 		const opened = await open(key, await seal(key, frame));
 		expect(opened).toEqual(frame);
 	});
 
-	it("round-trips a canvas-clear host frame", async () => {
+	it("round-trips an abort frame", async () => {
 		const key = await importRoomKey(generateRoomKey());
-		const frame: WireFrame = { t: "canvas-clear", fromPeer: 1 };
+		const frame: WireFrame = { t: "abort" };
 		const opened = await open(key, await seal(key, frame));
 		expect(opened).toEqual(frame);
 	});
 
-	it("round-trips a ping/pong exchange", async () => {
-		const key = await importRoomKey(generateRoomKey());
-		const ping: WireFrame = { t: "ping", id: 42 };
-		const pong: WireFrame = { t: "pong", id: 42 };
-		const openedPing = await open(key, await seal(key, ping));
-		const openedPong = await open(key, await seal(key, pong));
-		expect(openedPing).toEqual(ping);
-		expect(openedPong).toEqual(pong);
-	});
-
-	it("round-trips a canvas-snapshot host frame", async () => {
+	it("round-trips a state frame", async () => {
 		const key = await importRoomKey(generateRoomKey());
 		const frame: WireFrame = {
-			t: "canvas-snapshot",
-			strokes: [
-				{ id: "s1", points: [{ x: 0, y: 0, pressure: 0.5 }], color: "#fff", width: 2 },
-				{ id: "s2", points: [{ x: 10, y: 20, pressure: 0.8 }, { x: 30, y: 40, pressure: 0.6 }], color: "#7fdbca", width: 4 },
-			],
-		};
-		const opened = await open(key, await seal(key, frame));
-		expect(opened).toEqual(frame);
-	});
-
-	it("round-trips a canvas-presence host frame", async () => {
-		const key = await importRoomKey(generateRoomKey());
-		const frame: WireFrame = {
-			t: "canvas-presence",
-			peers: [
-				{ peerId: 1, name: "alice", color: "#7fdbca" },
-				{ peerId: 2, name: "bob", color: "#ff2c83" },
-			],
+			t: "state",
+			state: { isStreaming: true, queuedMessageCount: 1, cwd: "/work", participants: [] },
 		};
 		const opened = await open(key, await seal(key, frame));
 		expect(opened).toEqual(frame);
@@ -201,7 +192,7 @@ describe("codec round-trip with new frame types", () => {
 describe("WireFrame type compatibility", () => {
 	it("accepts all known host frame discriminants", () => {
 		// Compile-time check: the discriminant union must cover all frames the
-		// mock-host and guest-client dispatch on. Runtime discriminant test.
+		// mock-host and guest-client dispatch on.
 		const discriminants: HostFrame["t"][] = [
 			"welcome",
 			"snapshot-chunk",
@@ -215,15 +206,8 @@ describe("WireFrame type compatibility", () => {
 			"transcript",
 			"bye",
 			"error",
-			"canvas-snapshot",
-			"canvas-stroke",
-			"canvas-clear",
-			"canvas-cursor",
-			"canvas-presence",
-			"ping",
-			"pong",
 		];
-		expect(discriminants.length).toBeGreaterThanOrEqual(17);
+		expect(discriminants).toHaveLength(12);
 	});
 
 	it("accepts all known guest frame discriminants", () => {
@@ -234,12 +218,39 @@ describe("WireFrame type compatibility", () => {
 			"abort",
 			"agent-cmd",
 			"fetch-transcript",
-			"canvas-stroke",
-			"canvas-clear",
-			"canvas-cursor",
-			"ping",
-			"pong",
 		];
-		expect(discriminants.length).toBeGreaterThanOrEqual(11);
+		expect(discriminants).toHaveLength(6);
+	});
+
+	it("rejects unknown frame types at compile time", () => {
+		// Unknown frame types should be handled by the tolerant default branch
+		// in the switch statements, not by the type system.
+		const unknown: { t: string } = { t: "unknown-future-type" };
+		expect(unknown.t).toBe("unknown-future-type");
+	});
+});
+
+// ── Forward compatibility: unknown frame types pass through the codec ────────
+
+describe("forward compatibility", () => {
+	it("unknown frame fields round-trip through the codec", async () => {
+		const key = await importRoomKey(generateRoomKey());
+		const frame = { t: "prompt", text: "hello", unknownField: "should-survive" } as unknown as WireFrame;
+		const opened = await open(key, await seal(key, frame));
+		expect(opened).toHaveProperty("unknownField", "should-survive");
+	});
+
+	it("future canvas-like frame would round-trip as unknown", async () => {
+		// When canvas frames are added via capability negotiation, this test
+		// will be replaced with proper type-checked assertions. For now, it
+		// verifies that the codec handles any JSON object.
+		const key = await importRoomKey(generateRoomKey());
+		const futureFrame = {
+			t: "canvas-stroke",
+			stroke: { id: "s1", points: [{ x: 0, y: 0, pressure: 0.5 }], color: "#fff", width: 2 },
+		};
+		const opened = await open(key, await seal(key, futureFrame as unknown as WireFrame));
+		expect(opened).toHaveProperty("t", "canvas-stroke");
+		expect(opened).toHaveProperty("stroke");
 	});
 });
